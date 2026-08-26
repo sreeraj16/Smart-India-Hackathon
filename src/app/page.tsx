@@ -38,7 +38,7 @@ export default function LandingPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code,
-            redirectUri: 'http://localhost:3000/'
+            redirectUri: window.location.origin + '/'
           })
         })
           .then(res => res.json())
