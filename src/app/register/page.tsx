@@ -561,6 +561,14 @@ export default function RegisterPage() {
 
             {/* Problem Statement 1 Box */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <span className="text-xs font-extrabold text-brand-700 bg-brand-100 px-3 py-1 rounded-lg">
+                  Problem Statement 1 (Mandatory)
+                </span>
+                <span className="text-[11px] text-slate-500 font-semibold">Primary Problem Statement</span>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement ID *</label>
                 <input
                   type="text"

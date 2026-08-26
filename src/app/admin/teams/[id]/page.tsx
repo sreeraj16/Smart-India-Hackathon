@@ -87,7 +87,7 @@ export default function AdminTeamDetailPage() {
   const openEditEval = (ev: JuryEvaluation) => {
     setSelectedEval(ev);
     setEvalJuryId(ev.jury_id);
-    setEvalJuryName(ev.jury_name);
+    setEvalJuryName(ev.jury_name || 'Jury Member');
     setInnovationScore(ev.innovation_score);
     setRelevanceScore(ev.relevance_score);
     setTechnicalScore(ev.technical_score);
