@@ -141,10 +141,10 @@ export default function LandingPage() {
           </p>
 
           {/* Hackathon Dates Banner */}
-          <div className="max-w-2xl mx-auto mb-10 p-5 bg-gradient-to-r from-amber-500/10 via-brand-500/10 to-rose-500/10 border-2 border-brand-200 rounded-3xl shadow-sm text-center">
-            <span className="block text-[10px] font-black uppercase tracking-widest text-brand-750">Hackathon Dates</span>
-            <div className="text-base sm:text-lg font-black text-slate-900 mt-1 flex items-center justify-center gap-1.5">
-              📅 Dates of Internal Hackathon: <span className="text-brand-600 font-extrabold decoration-brand-400 underline decoration-wavy">7th and 8th of September, 2026</span>
+          <div className="max-w-xl mx-auto mb-10 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm text-center">
+            <div className="text-sm sm:text-base font-semibold text-slate-700 flex items-center justify-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse"></span>
+              Dates of Internal Hackathon: <span className="text-brand-600 font-black">7th & 8th September, 2026</span>
             </div>
           </div>
 
