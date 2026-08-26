@@ -190,18 +190,93 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Prominent Timeline Image Container */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md overflow-hidden">
-          <h2 className="text-base sm:text-lg font-black text-slate-900 mb-6 flex items-center justify-center gap-2 border-b border-slate-100 pb-3">
-            📋 SIH Process Flow & Timeline
-          </h2>
-          <div className="relative rounded-2xl overflow-hidden border border-slate-100 shadow-inner bg-slate-50 p-2">
-            <img
-              src="/sih-process-flow.png"
-              alt="SIH Process Flow and Timeline"
-              className="w-full h-auto object-contain"
-            />
+      {/* Prominent Timeline Section */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-20">
+        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-md">
+          <div className="text-center mb-10">
+            <span className="text-[10px] bg-brand-100 text-brand-700 font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+              Roadmap
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+              SIH Internal Hackathon Process Flow
+            </h2>
+            <p className="text-xs text-slate-500 mt-1.5">
+              Follow these chronological phases to register, participate, and win nomination.
+            </p>
+          </div>
+
+          <div className="relative border-l-2 border-slate-100 ml-3 sm:ml-6 space-y-8">
+            {/* Step 1 */}
+            <div className="relative pl-6 sm:pl-10">
+              <span className="absolute -left-3.5 sm:-left-4.5 top-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-600 text-white font-extrabold text-xs shadow-md border-4 border-white">
+                1
+              </span>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex flex-wrap items-center gap-2">
+                  Team Formation & Registration
+                  <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                    Phase 1 (Aug 25 - Sep 3)
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Form a team of exactly 6 student members including at least 1 female student (mandatory). Choose a problem statement directly from sih.gov.in and register on our platform.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative pl-6 sm:pl-10">
+              <span className="absolute -left-3.5 sm:-left-4.5 top-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-600 text-white font-extrabold text-xs shadow-md border-4 border-white">
+                2
+              </span>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex flex-wrap items-center gap-2">
+                  Presentation Deck Upload
+                  <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                    Phase 2 (Until Sep 5)
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Prepare your presentation slides using the official SIH template deck. Upload the PPT/PDF file directly from your Team Lead Dashboard to finalize eligibility.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative pl-6 sm:pl-10">
+              <span className="absolute -left-3.5 sm:-left-4.5 top-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-600 text-white font-extrabold text-xs shadow-md border-4 border-white">
+                3
+              </span>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex flex-wrap items-center gap-2">
+                  Jury Evaluation Slot (Screening)
+                  <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                    Phase 3 (Sep 7 - Sep 8)
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Pitch your solution to the internal evaluation jury. Your team has a 4-minute presentation slot, followed by 3 minutes of interactive Q&A from the examiners.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="relative pl-6 sm:pl-10">
+              <span className="absolute -left-3.5 sm:-left-4.5 top-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-600 text-white font-extrabold text-xs shadow-md border-4 border-white">
+                4
+              </span>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex flex-wrap items-center gap-2">
+                  Nomination & Official Central Entry
+                  <span className="text-[9px] sm:text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+                    Final Phase (Sep 9)
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  The top-performing selected teams will be officially nominated and registered on the central Smart India Hackathon portal by the institute's primary SPOC.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

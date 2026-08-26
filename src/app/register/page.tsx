@@ -561,14 +561,6 @@ export default function RegisterPage() {
 
             {/* Problem Statement 1 Box */}
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                <span className="text-xs font-extrabold text-brand-700 bg-brand-100 px-3 py-1 rounded-lg">
-                  Problem Statement 1 (Mandatory)
-                </span>
-                <span className="text-[11px] text-slate-500 font-semibold">Primary Problem Statement</span>
-              </div>
-
-              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement ID *</label>
                 <input
                   type="text"
@@ -577,6 +569,34 @@ export default function RegisterPage() {
                   onChange={(e) => setPs1Id(e.target.value)}
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement Category *</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ps1-category"
+                      value="Software"
+                      checked={ps1Category === 'Software'}
+                      onChange={() => setPs1Category('Software')}
+                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    />
+                    Software
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ps1-category"
+                      value="Hardware"
+                      checked={ps1Category === 'Hardware'}
+                      onChange={() => setPs1Category('Hardware')}
+                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    />
+                    Hardware
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -632,6 +652,34 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement Category *</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="ps2-category"
+                        value="Software"
+                        checked={ps2Category === 'Software'}
+                        onChange={() => setPs2Category('Software')}
+                        className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      />
+                      Software
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="ps2-category"
+                        value="Hardware"
+                        checked={ps2Category === 'Hardware'}
+                        onChange={() => setPs2Category('Hardware')}
+                        className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      />
+                      Hardware
+                    </label>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Problem Statement / Title *</label>
                   <textarea
                     rows={3}
@@ -639,7 +687,6 @@ export default function RegisterPage() {
                     value={ps2Title}
                     onChange={(e) => setPs2Title(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
                 </div>
               </div>
             )}

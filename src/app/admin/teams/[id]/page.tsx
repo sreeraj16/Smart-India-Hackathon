@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { HackathonStateManager } from '@/lib/store/stateManager';
-import { Team } from '@/lib/types';
+import { Team, JuryEvaluation } from '@/lib/types';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function AdminTeamDetailPage() {
@@ -16,11 +16,43 @@ export default function AdminTeamDetailPage() {
 
   const [team, setTeam] = useState<Team | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [evaluations, setEvaluations] = useState<JuryEvaluation[]>([]);
+
+  // Scoring rubric modal state variables
+  const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
+  const [selectedEval, setSelectedEval] = useState<JuryEvaluation | null>(null);
+
+  const [innovationScore, setInnovationScore] = useState<number>(15);
+  const [relevanceScore, setRelevanceScore] = useState<number>(15);
+  const [technicalScore, setTechnicalScore] = useState<number>(15);
+  const [presentationScore, setPresentationScore] = useState<number>(15);
+  const [qaScore, setQaScore] = useState<number>(15);
+  const [comments, setComments] = useState<string>('');
+
+  const [evalJuryId, setEvalJuryId] = useState<string>('admin-evaluation');
+  const [evalJuryName, setEvalJuryName] = useState<string>('Admin Controller');
+  const [isSubmittingEval, setIsSubmittingEval] = useState(false);
 
   useEffect(() => {
     if (teamId) {
       const loadedTeam = HackathonStateManager.getTeamById(teamId);
       setTeam(loadedTeam || null);
+
+      // Fetch evaluations
+      const fetchEvals = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('jury_evaluations')
+            .select('*')
+            .eq('team_id', teamId);
+          if (data && !error) {
+            setEvaluations(data);
+          }
+        } catch (err) {
+          console.error('Error fetching evaluations:', err);
+        }
+      };
+      fetchEvals();
     }
   }, [teamId]);
 
@@ -40,6 +72,104 @@ export default function AdminTeamDetailPage() {
 
   const avgScore = HackathonStateManager.getTeamAverageScore(team.team_id);
   const ppt = team.ppt_submission;
+
+  const handleScoreInput = (
+    setter: React.Dispatch<React.SetStateAction<number>>,
+    val: string
+  ) => {
+    const parsed = parseInt(val, 10);
+    if (isNaN(parsed)) setter(0);
+    else if (parsed < 0) setter(0);
+    else if (parsed > 20) setter(20);
+    else setter(parsed);
+  };
+
+  const openEditEval = (ev: JuryEvaluation) => {
+    setSelectedEval(ev);
+    setEvalJuryId(ev.jury_id);
+    setEvalJuryName(ev.jury_name);
+    setInnovationScore(ev.innovation_score);
+    setRelevanceScore(ev.relevance_score);
+    setTechnicalScore(ev.technical_score);
+    setPresentationScore(ev.presentation_score);
+    setQaScore(ev.qa_score);
+    setComments(ev.comments || '');
+    setIsEvalModalOpen(true);
+  };
+
+  const openNewEval = () => {
+    setSelectedEval(null);
+    setEvalJuryId('admin-evaluation');
+    setEvalJuryName('Admin Controller');
+    setInnovationScore(15);
+    setRelevanceScore(15);
+    setTechnicalScore(15);
+    setPresentationScore(15);
+    setQaScore(15);
+    setComments('');
+    setIsEvalModalOpen(true);
+  };
+
+  const handleSaveEvaluation = async () => {
+    setIsSubmittingEval(true);
+    const totalScore = innovationScore + relevanceScore + technicalScore + presentationScore + qaScore;
+    
+    try {
+      const newOrUpdatedEval = {
+        jury_id: evalJuryId,
+        jury_name: evalJuryName,
+        team_id: teamId,
+        innovation_score: innovationScore,
+        relevance_score: relevanceScore,
+        technical_score: technicalScore,
+        presentation_score: presentationScore,
+        qa_score: qaScore,
+        total_score: totalScore,
+        comments: comments,
+        submitted_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('jury_evaluations')
+        .upsert(newOrUpdatedEval, { onConflict: 'jury_id,team_id' });
+
+      if (error) throw error;
+
+      // Update state manager locally
+      HackathonStateManager.submitEvaluation({
+        jury_id: evalJuryId,
+        jury_name: evalJuryName,
+        team_id: teamId,
+        innovation_score: innovationScore,
+        relevance_score: relevanceScore,
+        technical_score: technicalScore,
+        presentation_score: presentationScore,
+        qa_score: qaScore,
+        total_score: totalScore,
+        comments: comments
+      });
+
+      // Reload evaluations state
+      const { data } = await supabase
+        .from('jury_evaluations')
+        .select('*')
+        .eq('team_id', teamId);
+      if (data) {
+        setEvaluations(data);
+      }
+
+      // Trigger standard local state updates to re-calculate average scores in lists
+      window.dispatchEvent(new Event('sih_teams_updated'));
+
+      setIsEvalModalOpen(false);
+      alert('Evaluation scores successfully recorded!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error saving evaluation: ' + err.message);
+    } finally {
+      setIsSubmittingEval(false);
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -175,6 +305,200 @@ export default function AdminTeamDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Admin Evaluations Panel */}
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-600" /> Evaluations & Marks Management
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Award fresh scores or edit existing evaluations submitted by Jury members.</p>
+          </div>
+          <button
+            onClick={openNewEval}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            Award Admin Marks
+          </button>
+        </div>
+
+        {evaluations.length === 0 ? (
+          <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <p className="text-xs text-slate-500 font-semibold">No evaluations recorded for this team yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {evaluations.map((ev) => (
+              <div key={ev.jury_id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                  <div>
+                    <span className="font-bold text-slate-950 text-sm">{ev.jury_name}</span>
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded ml-2 font-mono">{ev.jury_id}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-extrabold text-sm text-emerald-600">Total: {ev.total_score} / 100</span>
+                    <button
+                      onClick={() => openEditEval(ev)}
+                      className="px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                    >
+                      Edit Marks
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] text-slate-600">
+                  <div>Innovation: <strong className="text-slate-900">{ev.innovation_score} / 20</strong></div>
+                  <div>Relevance: <strong className="text-slate-900">{ev.relevance_score} / 20</strong></div>
+                  <div>Technical: <strong className="text-slate-900">{ev.technical_score} / 20</strong></div>
+                  <div>Presentation: <strong className="text-slate-900">{ev.presentation_score} / 20</strong></div>
+                  <div>Q&A: <strong className="text-slate-900">{ev.qa_score} / 20</strong></div>
+                </div>
+
+                {ev.comments && (
+                  <div className="italic text-slate-500 bg-white p-2 rounded border border-slate-100">
+                    "{ev.comments}"
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Admin Evaluation Modal */}
+      {isEvalModalOpen && (
+        <Modal
+          isOpen={isEvalModalOpen}
+          onClose={() => setIsEvalModalOpen(false)}
+          title={selectedEval ? `Edit Marks for ${evalJuryName}` : "Award Admin Marks"}
+          maxWidth="2xl"
+        >
+          <div className="space-y-6 text-xs">
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Evaluator ID / Role</label>
+                <input
+                  type="text"
+                  value={evalJuryId}
+                  disabled={!!selectedEval}
+                  onChange={(e) => setEvalJuryId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-75"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Evaluator Name</label>
+                <input
+                  type="text"
+                  value={evalJuryName}
+                  disabled={!!selectedEval}
+                  onChange={(e) => setEvalJuryName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-75"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Innovation */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                <label className="font-bold text-slate-900">Innovation & Novelty (Max 20)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={innovationScore}
+                  onChange={(e) => handleScoreInput(setInnovationScore, e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center font-bold"
+                />
+              </div>
+
+              {/* Relevance */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                <label className="font-bold text-slate-900">Relevance to PS (Max 20)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={relevanceScore}
+                  onChange={(e) => handleScoreInput(setRelevanceScore, e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center font-bold"
+                />
+              </div>
+
+              {/* Technical */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                <label className="font-bold text-slate-900">Technical Feasibility (Max 20)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={technicalScore}
+                  onChange={(e) => handleScoreInput(setTechnicalScore, e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center font-bold"
+                />
+              </div>
+
+              {/* Presentation */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                <label className="font-bold text-slate-900">Presentation Skills (Max 20)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={presentationScore}
+                  onChange={(e) => handleScoreInput(setPresentationScore, e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center font-bold"
+                />
+              </div>
+
+              {/* Q&A */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 sm:col-span-2 space-y-2">
+                <label className="font-bold text-slate-900">Q&A Responses (Max 20)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={qaScore}
+                  onChange={(e) => handleScoreInput(setQaScore, e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-center font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="text-right font-black text-sm text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+              Total Score: {innovationScore + relevanceScore + technicalScore + presentationScore + qaScore} / 100
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Comments / Feedback</label>
+              <textarea
+                rows={3}
+                placeholder="Constructive feedback regarding idea iteration, hardware elements, or presentation..."
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setIsEvalModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEvaluation}
+                disabled={isSubmittingEval}
+                className="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-70 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
+              >
+                {isSubmittingEval ? 'Saving...' : 'Save Evaluation'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* In-App Presentation Viewer Modal */}
       {isPreviewOpen && ppt && (() => {
