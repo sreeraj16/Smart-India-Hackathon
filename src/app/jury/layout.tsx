@@ -19,6 +19,8 @@ export default function JuryLayout({ children }: { children: React.ReactNode }) 
       router.push('/login');
     } else {
       setCurrentUser(user);
+      // Sync from Supabase on mount
+      HackathonStateManager.syncFromSupabase();
     }
   }, []);
 

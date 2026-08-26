@@ -15,17 +15,21 @@ export default function TeamDashboardPage() {
   const [selectedSecondPS, setSelectedSecondPS] = useState<ProblemStatement | null>(null);
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    const teamId = user?.team_id || 'SIH-2026-1001';
-    const loadedTeam = HackathonStateManager.getTeamById(teamId);
-    setTeam(loadedTeam || null);
-    setAllStatements(HackathonStateManager.getProblemStatements());
-
-    const handleUpdate = () => {
+    const refreshData = () => {
+      const user = HackathonStateManager.getCurrentUser();
+      const teamId = user?.team_id || 'SIH-2026-1001';
       setTeam(HackathonStateManager.getTeamById(teamId) || null);
+      setAllStatements(HackathonStateManager.getProblemStatements());
     };
-    window.addEventListener('sih_teams_updated', handleUpdate);
-    return () => window.removeEventListener('sih_teams_updated', handleUpdate);
+
+    refreshData();
+
+    window.addEventListener('sih_teams_updated', refreshData);
+    window.addEventListener('sih_auth_changed', refreshData);
+    return () => {
+      window.removeEventListener('sih_teams_updated', refreshData);
+      window.removeEventListener('sih_auth_changed', refreshData);
+    };
   }, []);
 
   const [customPsId, setCustomPsId] = useState('');
@@ -123,10 +127,10 @@ export default function TeamDashboardPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-xs font-bold text-slate-400 uppercase">Team ID</div>
-          <div className="text-xl font-extrabold text-slate-900 mt-1">{team.team_id}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Official Identifier</div>
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="text-xs font-bold text-slate-400 uppercase">Team Lead Email</div>
+          <div className="text-sm font-bold text-slate-900 mt-1 truncate" title={team.team_lead_email}>{team.team_lead_email}</div>
+          <div className="text-[11px] text-slate-500 mt-1">Official Contact Email</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">

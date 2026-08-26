@@ -14,16 +14,33 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
   const [team, setTeam] = useState<Team | null>(null);
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    if (!user || user.role !== 'team_lead') {
-      HackathonStateManager.setCurrentUser(null);
-      router.push('/login');
-    } else {
-      setCurrentUser(user);
-      if (user.team_id) {
-        setTeam(HackathonStateManager.getTeamById(user.team_id) || null);
+    const handleAuthOrTeamUpdate = () => {
+      const user = HackathonStateManager.getCurrentUser();
+      if (!user || user.role !== 'team_lead') {
+        HackathonStateManager.setCurrentUser(null);
+        router.push('/login');
+      } else {
+        setCurrentUser(user);
+        if (user.team_id) {
+          setTeam(HackathonStateManager.getTeamById(user.team_id) || null);
+        }
       }
-    }
+    };
+
+    handleAuthOrTeamUpdate();
+
+    // Initial mount sync from Supabase
+    HackathonStateManager.syncFromSupabase().then(() => {
+      handleAuthOrTeamUpdate();
+    });
+
+    window.addEventListener('sih_teams_updated', handleAuthOrTeamUpdate);
+    window.addEventListener('sih_auth_changed', handleAuthOrTeamUpdate);
+
+    return () => {
+      window.removeEventListener('sih_teams_updated', handleAuthOrTeamUpdate);
+      window.removeEventListener('sih_auth_changed', handleAuthOrTeamUpdate);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -44,11 +61,11 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
       <aside className="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col justify-between p-6">
         <div>
           
-          {/* Team ID Card */}
+          {/* Team Lead Email Card */}
           <div className="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 mb-6">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Team Identifier</div>
-            <div className="text-lg font-extrabold text-white mt-0.5 tracking-tight">
-              {team ? team.team_id : 'SIH-2026-1001'}
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Team Lead Email</div>
+            <div className="text-xs font-bold text-white mt-0.5 tracking-tight truncate" title={team ? team.team_lead_email : 'lead@rguktn.ac.in'}>
+              {team ? team.team_lead_email : 'lead@rguktn.ac.in'}
             </div>
             <div className="text-xs text-slate-400 mt-1 font-medium truncate">
               {team ? team.team_name : 'NeuralCrafters'}

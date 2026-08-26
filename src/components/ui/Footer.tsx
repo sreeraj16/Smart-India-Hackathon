@@ -23,14 +23,16 @@ export default function Footer() {
               Official platform for the Smart India Hackathon — Internal Hackathon 2026. Empowering student innovators to present groundbreaking solutions for nation-building challenges.
             </p>
 
-            {/* 3rd Image: HACKHUB Branding Card */}
-            <div className="inline-flex flex-col items-start bg-white p-3.5 px-5 rounded-2xl border border-slate-700/60 shadow-md">
-              <img
-                src="/hackhub-logo.png"
-                alt="HACKHUB - Coded For Hackathons"
-                className="h-16 sm:h-20 w-auto object-contain mb-2"
-              />
-              <div className="text-xs font-black tracking-wider text-slate-900 bg-amber-400 px-3 py-1 rounded-lg border border-amber-500 font-mono shadow-xs">
+            {/* HACKHUB Branding Card */}
+            <div className="inline-flex flex-col items-start gap-2.5 mt-2">
+              <div className="bg-white rounded-xl border border-slate-700/60 shadow-sm overflow-hidden max-w-[150px] p-1 flex items-center justify-center">
+                <img
+                  src="/hackhub-logo.png"
+                  alt="HACKHUB - Coded For Hackathons"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+              <div className="text-[9px] font-black tracking-wider text-slate-900 bg-amber-400 px-2 py-0.5 rounded border border-amber-500 font-mono shadow-xs">
                 @Team_HACKHUB-RGUKT NUZVID
               </div>
             </div>

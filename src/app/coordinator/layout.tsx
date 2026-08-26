@@ -30,6 +30,8 @@ export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) 
       router.push('/login');
     } else {
       setCurrentUser(user);
+      // Sync from Supabase on mount
+      HackathonStateManager.syncFromSupabase();
     }
   }, []);
 

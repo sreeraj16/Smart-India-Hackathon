@@ -788,10 +788,6 @@ export default function RegisterPage() {
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">Assigned Team ID:</span>
-                  <span className="font-extrabold text-brand-700">{createdTeam.teamId}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Team Lead ID Number:</span>
                   <span className="font-bold text-slate-800">{leadIdNumber}</span>
                 </div>

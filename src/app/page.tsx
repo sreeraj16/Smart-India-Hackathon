@@ -14,13 +14,16 @@ export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const teams = HackathonStateManager.getTeams();
-    const ps = HackathonStateManager.getProblemStatements();
-    const ppts = teams.filter(t => t.ppt_submission).length;
-    setStats({
-      teamsCount: teams.length,
-      psCount: ps.length,
-      pptsCount: ppts
+    // Sync from Supabase first
+    HackathonStateManager.syncFromSupabase().then(() => {
+      const teams = HackathonStateManager.getTeams();
+      const ps = HackathonStateManager.getProblemStatements();
+      const ppts = teams.filter(t => t.ppt_submission).length;
+      setStats({
+        teamsCount: teams.length,
+        psCount: ps.length,
+        pptsCount: ppts
+      });
     });
 
     // Check if returning from Google OAuth redirect with ?code=...
@@ -42,8 +45,11 @@ export default function LandingPage() {
           })
         })
           .then(res => res.json())
-          .then(data => {
+          .then(async data => {
             if (data.success && data.user) {
+              // Ensure local storage is fully synced with Supabase before matching team
+              await HackathonStateManager.syncFromSupabase();
+
               const googleUser: UserProfile = {
                 user_id: `google-${data.user.id || Date.now()}`,
                 name: data.user.name || 'Google Authenticated User',

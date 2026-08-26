@@ -37,3 +37,42 @@ INSERT INTO public.faculty_members (name)
 SELECT name FROM public.profiles 
 WHERE role = 'jury'
 ON CONFLICT (name) DO NOTHING;
+
+-- 8. Add RLS policies for remaining tables to ensure public read/write/update access
+ALTER TABLE public.ppt_submissions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of ppt_submissions" ON public.ppt_submissions;
+DROP POLICY IF EXISTS "Allow public write of ppt_submissions" ON public.ppt_submissions;
+CREATE POLICY "Allow public read of ppt_submissions" ON public.ppt_submissions FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of ppt_submissions" ON public.ppt_submissions FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.presentation_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of presentation_sessions" ON public.presentation_sessions;
+DROP POLICY IF EXISTS "Allow public write of presentation_sessions" ON public.presentation_sessions;
+CREATE POLICY "Allow public read of presentation_sessions" ON public.presentation_sessions FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of presentation_sessions" ON public.presentation_sessions FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.jury_evaluations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of jury_evaluations" ON public.jury_evaluations;
+DROP POLICY IF EXISTS "Allow public write of jury_evaluations" ON public.jury_evaluations;
+CREATE POLICY "Allow public read of jury_evaluations" ON public.jury_evaluations FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of jury_evaluations" ON public.jury_evaluations FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.final_results ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of final_results" ON public.final_results;
+DROP POLICY IF EXISTS "Allow public write of final_results" ON public.final_results;
+CREATE POLICY "Allow public read of final_results" ON public.final_results FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of final_results" ON public.final_results FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of audit_logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Allow public write of audit_logs" ON public.audit_logs;
+CREATE POLICY "Allow public read of audit_logs" ON public.audit_logs FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of audit_logs" ON public.audit_logs FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- Also ensure profiles has public read/write/update access for OAuth/signup sync
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public write of profiles" ON public.profiles;
+CREATE POLICY "Allow public read of profiles" ON public.profiles FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of profiles" ON public.profiles FOR ALL TO public USING (true) WITH CHECK (true);
+
