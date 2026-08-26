@@ -687,6 +687,7 @@ export default function RegisterPage() {
                     value={ps2Title}
                     onChange={(e) => setPs2Title(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
                 </div>
               </div>
             )}
