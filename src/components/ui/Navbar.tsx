@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { UserProfile } from '@/lib/types';
-import { Shield, UserCheck, Award, LogOut, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Shield, UserCheck, Award, LogOut, FileText, CheckCircle2, ChevronRight, Menu, X as XIcon } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const user = HackathonStateManager.getCurrentUser();
@@ -26,11 +27,12 @@ export default function Navbar() {
 
   const handleLogout = () => {
     HackathonStateManager.setCurrentUser(null);
+    setMobileMenuOpen(false);
     router.push('/login');
   };
 
   return (
-    <nav className="sticky top-0 z-50 glass-nav shadow-sm">
+    <nav className="sticky top-0 z-50 glass-nav shadow-sm bg-white/90 backdrop-blur-md border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
@@ -49,7 +51,7 @@ export default function Navbar() {
                 className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
               />
             </div>
-            <div>
+            <div className="hidden sm:block">
               <div className="font-bold text-slate-900 leading-tight group-hover:text-brand-600 transition-colors flex items-center gap-1.5">
                 RGUKT Nuzvid
                 <span className="text-[10px] bg-brand-100 text-brand-700 font-semibold px-2 py-0.5 rounded-full border border-brand-200">2026</span>
@@ -58,7 +60,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Navigation Links (Desktop) */}
           <div className="hidden md:flex items-center space-x-6">
             <Link 
               href="/" 
@@ -100,9 +102,18 @@ export default function Navbar() {
                 Admin Control <ChevronRight className="w-4 h-4" />
               </Link>
             )}
+
+            {currentUser?.role === 'coordinator' && (
+              <Link 
+                href="/coordinator/dashboard" 
+                className="text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              >
+                Coordinator Control <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
 
-          {/* User Auth CTA */}
+          {/* User Auth CTA & Hamburger Trigger */}
           <div className="flex items-center space-x-3">
             {currentUser ? (
               <div className="flex items-center gap-3">
@@ -133,16 +144,100 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/guidelines"
-                  className="text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl shadow-sm transition-all hover:shadow hover:scale-[1.02]"
+                  className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all hover:shadow hover:scale-[1.02] hidden sm:block"
                 >
                   Register Team
                 </Link>
               </div>
             )}
+
+            {/* Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none transition-colors md:hidden"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <XIcon className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
 
         </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-4 py-4 space-y-2 shadow-lg animate-in slide-in-from-top duration-200">
+          <Link
+            href="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`block px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+              pathname === '/' ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Home
+          </Link>
+          <Link
+            href="/guidelines"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`block px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+              pathname === '/guidelines' ? 'text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Guidelines & Rules
+          </Link>
+
+          {/* Role specific quick links */}
+          {currentUser?.role === 'team_lead' && (
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 rounded-xl text-sm font-bold text-brand-750 bg-brand-50 hover:bg-brand-100 transition-colors"
+            >
+              Team Dashboard
+            </Link>
+          )}
+
+          {currentUser?.role === 'jury' && (
+            <Link
+              href="/jury/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+            >
+              Jury Portal
+            </Link>
+          )}
+
+          {currentUser?.role === 'admin' && (
+            <Link
+              href="/admin/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 rounded-xl text-sm font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+            >
+              Admin Control
+            </Link>
+          )}
+
+          {currentUser?.role === 'coordinator' && (
+            <Link
+              href="/coordinator/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 rounded-xl text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+            >
+              Coordinator Dashboard
+            </Link>
+          )}
+
+          {!currentUser && (
+            <Link
+              href="/guidelines"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 text-center transition-colors shadow-sm"
+            >
+              Register Team
+            </Link>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

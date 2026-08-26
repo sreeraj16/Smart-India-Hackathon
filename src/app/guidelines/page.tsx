@@ -3,112 +3,152 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Clock, Award, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, UserCheck, Heart, Home, AlertCircle, Award, FileText, ArrowRight } from 'lucide-react';
 
 export default function GuidelinesPage() {
   const [agreed, setAgreed] = useState(true);
   const router = useRouter();
 
-  const handleContinue = () => {
-    router.push('/register');
-  };
-
   return (
-    <div className="py-12 bg-slate-50 min-h-screen">
+    <div className="py-16 bg-slate-50 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Title Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-            <ShieldCheck className="w-4 h-4" /> Official Guidelines & Evaluation Rubric
+            <ShieldCheck className="w-4 h-4" /> SIH Internal Hackathon 2026
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Participant Rules & Regulations — SIH 2026
+            Team Registration Rules
           </h1>
-          <p className="text-slate-600 text-sm mt-2">
-            RGUKT Nuzvid Internal Hackathon Rules. Please review thoroughly before proceeding to team registration.
+          <p className="text-slate-600 text-sm mt-2 max-w-xl mx-auto">
+            Please read and verify all rules and requirements for your team registration carefully before proceeding.
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
           
-          {/* General Operational Guidelines */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-brand-600" /> Reporting & Presentation Schedule
-            </h2>
-            <ul className="space-y-3 text-sm text-slate-700 list-disc list-inside leading-relaxed">
-              <li><strong>Reporting:</strong> All registered teams must report at least <strong>20 minutes prior</strong> to their allotted slot.</li>
-              <li><strong>Presentation file:</strong> Teams must verify with venue coordinators that their presentation file (PPT/PPTX/PDF) is uploaded and ready before their slot.</li>
-              <li><strong>Presentation & Q&A:</strong> Exactly <strong>4 minutes presentation/pitch</strong> + <strong>4 minutes Q&A</strong> per team.</li>
-              <li><strong>Time limit:</strong> Exceeding the allotted presentation time is noted by the automated timer system and can lead to disqualification.</li>
-              <li><strong>Attendance:</strong> The Team Leader must ensure team attendance is marked with venue coordinators before or after presenting.</li>
-              <li><strong>Verification:</strong> The Jury panel verifies Team Name, Members, and Problem Statement against the official registered roster before each slot; a team not on the list, or not present on time, is disqualified immediately.</li>
-            </ul>
-          </div>
-
-          {/* Evaluation Rubric Table */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Award className="w-5 h-5 text-emerald-600" /> Evaluation Metrics (Total 100 Marks)
-            </h2>
-            <p className="text-slate-600 text-xs mb-4">
-              Jury members evaluate each team strictly across five criteria, capped at 20 marks each:
-            </p>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-900 font-bold">
-                    <th className="py-3 px-4">Evaluation Criteria</th>
-                    <th className="py-3 px-4 text-right">Max Marks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  <tr>
-                    <td className="py-3.5 px-4 font-medium">1. Innovation & Novelty (Idea / Approach)</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 text-right">20 Marks</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 px-4 font-medium">2. Relevance to Problem Statement (PPT Design & Focus)</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 text-right">20 Marks</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 px-4 font-medium">3. Technical Feasibility & Project Impact</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 text-right">20 Marks</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 px-4 font-medium">4. Presentation Skills (Pitching)</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 text-right">20 Marks</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3.5 px-4 font-medium">5. Q&A Responses</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 text-right">20 Marks</td>
-                  </tr>
-                  <tr className="bg-brand-50/60 font-extrabold text-brand-900">
-                    <td className="py-4 px-4 text-base">TOTAL SCORE</td>
-                    <td className="py-4 px-4 text-base text-right text-brand-700">100 MARKS</td>
-                  </tr>
-                </tbody>
-              </table>
+          {/* Rules List Container */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 divide-y divide-slate-100">
+            
+            {/* Rule 1 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-brand-50 text-brand-600 rounded-xl shrink-0">
+                <UserCheck className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Team Size Requirement</h3>
+                <p className="text-slate-600 text-xs mt-1">Each team must consist of exactly 6 student members, including the designated Team Leader.</p>
+              </div>
             </div>
-          </div>
 
-          {/* Code of Conduct */}
-          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
-            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-600" /> Code of Conduct
-            </h2>
-            <ul className="space-y-2.5 text-sm text-slate-700 list-disc list-inside">
-              <li>Do not argue with Jury Members; their decision is final and binding.</li>
-              <li>Maintain strict decorum and silence at the venue; do not disturb ongoing class sessions nearby.</li>
-              <li>Only registered team members and chosen problem statements are permitted; mismatches cause immediate disqualification.</li>
-              <li>Cooperate with student coordinators, jury members, and volunteers at all times.</li>
-            </ul>
+            {/* Rule 2 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-rose-50 text-rose-600 rounded-xl shrink-0">
+                <Heart className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Gender Inclusivity Rule</h3>
+                <p className="text-slate-600 text-xs mt-1">At least 1 female student must be part of every team (Mandatory validation).</p>
+              </div>
+            </div>
+
+            {/* Rule 3 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
+                <Home className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Institutional Affiliation</h3>
+                <p className="text-slate-600 text-xs mt-1">All team members must belong to the same college/institute. Inter-college teams are strictly not allowed.</p>
+              </div>
+            </div>
+
+            {/* Rule 4 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-amber-50 text-amber-600 rounded-xl shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Single Participation Limit</h3>
+                <p className="text-slate-600 text-xs mt-1">Each student can be part of only one team. Duplicate registrations will lead to disqualification.</p>
+              </div>
+            </div>
+
+            {/* Rule 5 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-teal-50 text-teal-600 rounded-xl shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Designated Team Leader</h3>
+                <p className="text-slate-600 text-xs mt-1">Every team must have a designated Team Leader responsible for credentials and slide uploads.</p>
+              </div>
+            </div>
+
+            {/* Rule 6 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-purple-50 text-purple-600 rounded-xl shrink-0">
+                <Award className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Unique Team Identifier</h3>
+                <p className="text-slate-600 text-xs mt-1">The team name must be completely unique and must end exactly with the suffix <code>_RGUKTN</code>.</p>
+              </div>
+            </div>
+
+            {/* Rule 7 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+                <FileText className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Project Categories</h3>
+                <p className="text-slate-600 text-xs mt-1">Teams may participate in either the Software or Hardware category.</p>
+                <ul className="text-slate-500 text-[11px] mt-1 list-disc list-inside leading-snug">
+                  <li><strong>Software:</strong> Teams should possess appropriate programming & technical development skills.</li>
+                  <li><strong>Hardware:</strong> Multidisciplinary teams are encouraged (Mechanical, Electronics, Product Design, Programming, etc.).</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Rule 8 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-sky-50 text-sky-600 rounded-xl shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">SIH Nomination Eligibility</h3>
+                <p className="text-slate-600 text-xs mt-1">Only teams that participate in and are selected through the Internal Hackathon will be eligible for subsequent official SIH nomination.</p>
+              </div>
+            </div>
+
+            {/* Rule 9 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-pink-50 text-pink-600 rounded-xl shrink-0">
+                <UserCheck className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Accurate Registration Details</h3>
+                <p className="text-slate-600 text-xs mt-1">Team members must provide accurate details required for registration, including name, gender, college email ID (@rguktn.ac.in), and mobile number.</p>
+              </div>
+            </div>
+
+            {/* Rule 10 */}
+            <div className="py-4 flex gap-4 items-start">
+              <span className="p-2 bg-cyan-50 text-cyan-600 rounded-xl shrink-0">
+                <FileText className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Problem Statement & Innovation Idea</h3>
+                <p className="text-slate-600 text-xs mt-1">The team should register with a clear problem statement / innovation idea copy-pasted directly from sih.gov.in for evaluation during the Internal Hackathon.</p>
+              </div>
+            </div>
+
           </div>
 
           {/* Agreement Gate */}
-          <div className="bg-brand-50 border border-brand-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+          <div className="bg-brand-50 border border-brand-200 rounded-3xl p-6 sm:p-8 shadow-sm">
             <div className="flex items-start gap-4">
               <input
                 type="checkbox"
