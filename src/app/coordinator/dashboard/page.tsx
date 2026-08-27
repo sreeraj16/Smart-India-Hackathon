@@ -211,18 +211,18 @@ export default function CoordinatorDashboard() {
       stopBuzzerSound(); // clean up old sound references
       setIsBuzzerSounding(true);
 
-      const triggerChime = () => {
+      const triggerBeeps = () => {
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         
-        const playChime = (frequency: number, startTime: number, duration: number) => {
+        const playBeep = (startTime: number, duration: number) => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
 
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(frequency, startTime);
+          osc.frequency.setValueAtTime(987.77, startTime); // B5 note (987.77Hz) for a clean digital beep
           
           gain.gain.setValueAtTime(0, startTime);
-          gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+          gain.gain.linearRampToValueAtTime(0.25, startTime + 0.01);
           gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
           osc.connect(gain);
@@ -232,16 +232,16 @@ export default function CoordinatorDashboard() {
           osc.stop(startTime + duration);
         };
 
-        // Play professional dual-chime chord: E5 (660Hz) and A5 (880Hz)
-        playChime(660, audioCtx.currentTime, 0.4);
-        playChime(880, audioCtx.currentTime + 0.12, 0.5);
+        // Clean, sharp double beep alarm: "Beep-Beep"
+        playBeep(audioCtx.currentTime, 0.12);
+        playBeep(audioCtx.currentTime + 0.18, 0.15);
 
         (window as any).activeChimeContexts = (window as any).activeChimeContexts || [];
         (window as any).activeChimeContexts.push(audioCtx);
       };
 
-      triggerChime();
-      const intervalId = setInterval(triggerChime, 1500);
+      triggerBeeps();
+      const intervalId = setInterval(triggerBeeps, 1000); // Pulse every 1 second
       (window as any).activeBuzzerInterval = intervalId;
     } catch (e) {
       console.error('Audio synthesiser failed:', e);
