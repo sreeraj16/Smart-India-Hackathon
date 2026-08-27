@@ -76,9 +76,25 @@ DROP POLICY IF EXISTS "Allow public write of profiles" ON public.profiles;
 CREATE POLICY "Allow public read of profiles" ON public.profiles FOR SELECT TO public USING (true);
 CREATE POLICY "Allow public write of profiles" ON public.profiles FOR ALL TO public USING (true) WITH CHECK (true);
 
--- 9. Add ON DELETE CASCADE for audit_logs team_id relation
+
+-- 9. Recreate all team-related foreign key constraints with ON DELETE CASCADE
+-- This allows deleting teams from public.teams table to automatically clean up child tables
+
 ALTER TABLE public.audit_logs DROP CONSTRAINT IF EXISTS audit_logs_team_id_fkey;
-ALTER TABLE public.audit_logs 
-    ADD CONSTRAINT audit_logs_team_id_fkey 
-    FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+ALTER TABLE public.audit_logs ADD CONSTRAINT audit_logs_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+ALTER TABLE public.ppt_submissions DROP CONSTRAINT IF EXISTS ppt_submissions_team_id_fkey;
+ALTER TABLE public.ppt_submissions ADD CONSTRAINT ppt_submissions_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+ALTER TABLE public.presentation_sessions DROP CONSTRAINT IF EXISTS presentation_sessions_team_id_fkey;
+ALTER TABLE public.presentation_sessions ADD CONSTRAINT presentation_sessions_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+ALTER TABLE public.team_members DROP CONSTRAINT IF EXISTS team_members_team_id_fkey;
+ALTER TABLE public.team_members ADD CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+ALTER TABLE public.team_problem_statements DROP CONSTRAINT IF EXISTS team_problem_statements_team_id_fkey;
+ALTER TABLE public.team_problem_statements ADD CONSTRAINT team_problem_statements_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+ALTER TABLE public.final_results DROP CONSTRAINT IF EXISTS final_results_team_id_fkey;
+ALTER TABLE public.final_results ADD CONSTRAINT final_results_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
 
