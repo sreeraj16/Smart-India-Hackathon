@@ -37,12 +37,15 @@ export default function AdminDashboardPage() {
       }
     });
 
+    const presentations = teams.filter(t => t.presentation_completed).length;
+    const completedEvals = teams.filter(t => t.completed_at).length;
+
     setStats({
       totalTeams: teams.length,
       totalParticipants: participants,
       pptsUploaded: ppts,
-      presentationsCompleted: 2, // demo
-      evaluationsCompleted: evals.length,
+      presentationsCompleted: presentations,
+      evaluationsCompleted: completedEvals,
       top50Selected: selectedCount
     });
   }, []);

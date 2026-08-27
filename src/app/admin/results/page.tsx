@@ -192,7 +192,7 @@ export default function AdminResultsPage() {
                 <th className="py-3.5 px-4">Team ID</th>
                 <th className="py-3.5 px-4">Team Name</th>
                 <th className="py-3.5 px-4">Problem Statement</th>
-                <th className="py-3.5 px-4 text-center">Jury Avg Score</th>
+                <th className="py-3.5 px-4 text-center">Jury Accumulated Score</th>
                 <th className="py-3.5 px-4 text-center">Top 50 Status</th>
                 <th className="py-3.5 px-4">Override Info</th>
                 <th className="py-3.5 px-4 text-right">Manual Control</th>
@@ -224,7 +224,12 @@ export default function AdminResultsPage() {
                   </td>
 
                   <td className="py-3.5 px-4 text-center font-black text-sm text-slate-900">
-                    {item.score > 0 ? `${item.score.toFixed(2)}` : '-'}
+                    {(() => {
+                      const teamEvals = HackathonStateManager.getEvaluations().filter(e => e.team_id === item.team_id);
+                      const totalAccum = teamEvals.reduce((sum, ev) => sum + ev.total_score, 0);
+                      const maxPossible = teamEvals.length * 100;
+                      return teamEvals.length > 0 ? `${totalAccum}/${maxPossible}` : '-';
+                    })()}
                   </td>
 
                   <td className="py-3.5 px-4 text-center">

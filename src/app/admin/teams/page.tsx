@@ -111,13 +111,12 @@ export default function AdminTeamsPage() {
                   <th className="py-3.5 px-4 text-center">Members</th>
                   <th className="py-3.5 px-4">Problem Statement</th>
                   <th className="py-3.5 px-4">PPT Status</th>
-                  <th className="py-3.5 px-4 text-center">Jury Avg Score</th>
+                  <th className="py-3.5 px-4 text-center">Jury Accumulated Score</th>
                   <th className="py-3.5 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
                 {filteredTeams.map((team) => {
-                  const avgScore = HackathonStateManager.getTeamAverageScore(team.team_id);
                   const hasPpt = !!team.ppt_submission;
                   const primaryPS = team.selected_problem_statements[0];
 
@@ -136,13 +135,18 @@ export default function AdminTeamsPage() {
                       </td>
                       <td className="py-3.5 px-4">
                         {hasPpt ? (
-                          <Badge variant="green">🟢 Uploaded</Badge>
+                           <Badge variant="green">🟢 Uploaded</Badge>
                         ) : (
                           <Badge variant="yellow">🟡 Pending</Badge>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-center font-extrabold text-slate-900">
-                        {avgScore > 0 ? `${avgScore} / 100` : '-'}
+                        {(() => {
+                          const teamEvals = HackathonStateManager.getEvaluations().filter(e => e.team_id === team.team_id);
+                          const totalAccum = teamEvals.reduce((sum, ev) => sum + ev.total_score, 0);
+                          const maxPossible = teamEvals.length * 100;
+                          return teamEvals.length > 0 ? `${totalAccum}/${maxPossible}` : '-';
+                        })()}
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <Link

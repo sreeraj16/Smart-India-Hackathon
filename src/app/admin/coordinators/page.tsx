@@ -359,21 +359,28 @@ export default function AdminCoordinatorsPage() {
                         </select>
                       </td>
                       <td className="p-4">
-                        {team.presentation_completed ? (
-                          <span className="px-2 py-0.5 text-[10px] rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Completed
+                        <div className="flex flex-col gap-1 w-24">
+                          <span className={`px-2 py-0.5 text-[9px] rounded-full font-bold text-center border ${
+                            team.presentation_completed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                            Pres: {team.presentation_completed ? 'Completed' : 'Pending'}
                           </span>
-                        ) : (
-                          <span className="px-2 py-0.5 text-[10px] rounded-full font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            Pending
+                          <span className={`px-2 py-0.5 text-[9px] rounded-full font-bold text-center border ${
+                            team.completed_at ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            Eval: {team.completed_at ? 'Complete' : 'Pending'}
                           </span>
-                        )}
+                        </div>
                       </td>
                       <td className="p-4 text-[10px] text-slate-500 font-medium">
-                        {team.presentation_completed ? (
+                        {team.presentation_completed || team.completed_at ? (
                           <div>
-                            By: {team.completed_by || 'Coordinator'}<br/>
-                            At: {team.completed_at ? new Date(team.completed_at).toLocaleString() : 'N/A'}
+                            {team.presentation_completed && (
+                              <div>Pres By: {team.completed_by || 'Coordinator'}</div>
+                            )}
+                            {team.completed_at && (
+                              <div>Eval At: {new Date(team.completed_at).toLocaleString()}</div>
+                            )}
                           </div>
                         ) : (
                           <span>--</span>

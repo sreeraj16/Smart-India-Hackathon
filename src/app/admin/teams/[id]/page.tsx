@@ -161,6 +161,8 @@ export default function AdminTeamDetailPage() {
       // Trigger standard local state updates to re-calculate average scores in lists
       window.dispatchEvent(new Event('sih_teams_updated'));
 
+      await HackathonStateManager.checkTeamEvaluationCompletion(teamId);
+
       setIsEvalModalOpen(false);
       alert('Evaluation scores successfully recorded!');
     } catch (err: any) {
@@ -198,9 +200,13 @@ export default function AdminTeamDetailPage() {
           </div>
 
           <div className="text-right">
-            <div className="text-[11px] font-bold text-slate-400 uppercase">Jury Average Score</div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase">Jury Accumulated Score</div>
             <div className="text-2xl font-extrabold text-emerald-600">
-              {avgScore > 0 ? `${avgScore} / 100` : 'Not Evaluated Yet'}
+              {(() => {
+                const totalAccum = evaluations.reduce((sum, ev) => sum + ev.total_score, 0);
+                const maxPossible = evaluations.length * 100;
+                return evaluations.length > 0 ? `${totalAccum} / ${maxPossible}` : 'Not Evaluated Yet';
+              })()}
             </div>
           </div>
         </div>

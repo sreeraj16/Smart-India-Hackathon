@@ -534,5 +534,59 @@ export class HackathonStateManager {
       console.error('Failed to sync state from Supabase:', err);
     }
   }
+
+  static async checkTeamEvaluationCompletion(teamId: string): Promise<void> {
+    if (!this.isBrowser()) return;
+    const { createClient } = await import('@/utils/supabase/client');
+    const supabase = createClient();
+    
+    // 1. Fetch team panel details
+    const { data: teamData } = await supabase
+      .from('teams')
+      .select('panel')
+      .eq('team_id', teamId)
+      .maybeSingle();
+      
+    if (!teamData) return;
+    const panelName = teamData.panel || 'Panel 1';
+
+    // 2. Fetch all juries in that panel
+    const { data: juries } = await supabase
+      .from('profiles')
+      .select('user_id, jury_id')
+      .eq('role', 'jury')
+      .eq('panel', panelName);
+
+    const expectedJuryIds = (juries || [])
+      .map(j => j.jury_id || j.user_id)
+      .filter(Boolean);
+
+    // 3. Fetch submitted evaluations for this team
+    const { data: evals } = await supabase
+      .from('jury_evaluations')
+      .select('jury_id')
+      .eq('team_id', teamId);
+
+    const submittedJuryIds = (evals || []).map(e => e.jury_id);
+
+    // 4. Determine completion: must have expected juries and all expected juries must have submitted
+    const isCompleted = expectedJuryIds.length > 0 && expectedJuryIds.every(id => submittedJuryIds.includes(id));
+    const completedAt = isCompleted ? new Date().toISOString() : null;
+
+    // 5. Update team completed_at in Supabase
+    await supabase
+      .from('teams')
+      .update({ completed_at: completedAt })
+      .eq('team_id', teamId);
+
+    // 6. Update local storage representation
+    const teams = this.getTeams();
+    const tIdx = teams.findIndex(t => t.team_id === teamId);
+    if (tIdx > -1) {
+      teams[tIdx].completed_at = completedAt || undefined;
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+      window.dispatchEvent(new Event('sih_teams_updated'));
+    }
+  }
 }
 

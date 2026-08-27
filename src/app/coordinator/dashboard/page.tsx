@@ -314,8 +314,7 @@ export default function CoordinatorDashboard() {
         .from('teams')
         .update({
           presentation_completed: true,
-          completed_by: coordinatorPanel,
-          completed_at: completedTime
+          completed_by: coordinatorPanel
         })
         .eq('team_id', selectedTeam.team_id);
 
@@ -343,8 +342,7 @@ export default function CoordinatorDashboard() {
           return {
             ...t,
             presentation_completed: true,
-            completed_by: coordinatorPanel,
-            completed_at: completedTime
+            completed_by: coordinatorPanel
           };
         }
         return t;
@@ -355,8 +353,7 @@ export default function CoordinatorDashboard() {
       setSelectedTeam({
         ...selectedTeam,
         presentation_completed: true,
-        completed_by: coordinatorPanel,
-        completed_at: completedTime
+        completed_by: coordinatorPanel
       });
 
       stopBuzzerSound();

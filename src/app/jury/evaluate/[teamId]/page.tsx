@@ -150,6 +150,7 @@ export default function JuryEvaluatePage() {
 
       setIsSubmitModalOpen(false);
       setSuccessSubmitted(true);
+      await HackathonStateManager.checkTeamEvaluationCompletion(team.team_id);
     } catch (err: any) {
       console.error('Error saving evaluation:', err);
       setErrorMsg(err.message || 'Failed to submit evaluation to the database.');
