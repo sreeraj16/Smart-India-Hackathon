@@ -249,6 +249,49 @@ export default function TeamDashboardPage() {
 
       </div>
 
+      {/* PPT Reference Resources */}
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-4">
+        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          📚 PPT Reference & Inspiration Resources
+        </h3>
+        <p className="text-xs text-slate-500 leading-relaxed font-medium">
+          Use these curated reference materials as inspiration for slide structure, problem statement breakdown, solution architecture charts, and technical feasibility layouts.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <a
+            href="https://www.slideshare.net/search?searchFrom=header&q=Sih&page=3&fbclid=PAb21jcAT8rFlvbWNwBPekJlRERVgE1p0FcGRvZgJleHRuA2FlbQIxMABzcnRjBmFwcF9pZA8xMjQwMjQ1NzQyODc0MTQAAafpxP4cKM12UIRbm_Q-z7800VD-GHNenbvKPrEK_sg21yKRtDpGB83oB8KCFw_aem_VFOwVEL0Ei3k5nsyQbE13A"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-brand-500 hover:bg-brand-50/20 transition-all flex flex-col justify-between space-y-3 group text-left"
+          >
+            <div>
+              <span className="text-[10px] font-black text-brand-700 bg-brand-50 px-2 py-0.5 rounded">SLIDESHARE</span>
+              <h4 className="text-xs font-bold text-slate-900 mt-2">SlideShare – SIH Presentations</h4>
+              <p className="text-[11px] text-slate-500 mt-1">Wide collection of Smart India Hackathon slide deck references, outlines, and design diagrams.</p>
+            </div>
+            <span className="text-[11px] text-brand-650 font-extrabold flex items-center gap-1 mt-2 group-hover:underline">
+              View SlideShare References ↗
+            </span>
+          </a>
+
+          <a
+            href="https://drive.google.com/drive/folders/1-wTGWM3bIdaN74NYZDZsFvZbwlVhmvsE?utm_referrer=sp_auto_dm&fbclid=PAVERTVgT7fNtwZG9mAmV4dG4DYWVtAjEwAHNydGMGYXBwX2lkDzU2NzA2NzM0MzM1MjQyNwABp6HzkHGxi_5aK6ahcvit-AE_kxoHTjmta8ysbLzNDpOenu1skQU7p2c6sD5B_aem_tVcaa6Sh9Sxm9gdOhvcjvg"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-brand-500 hover:bg-brand-50/20 transition-all flex flex-col justify-between space-y-3 group text-left"
+          >
+            <div>
+              <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">GOOGLE DRIVE</span>
+              <h4 className="text-xs font-bold text-slate-900 mt-2">Winning SIH PPT References</h4>
+              <p className="text-[11px] text-slate-500 mt-1">Official repository of high-scoring and winning presentation decks from previous SIH cohorts.</p>
+            </div>
+            <span className="text-[11px] text-indigo-650 font-extrabold flex items-center gap-1 mt-2 group-hover:underline">
+              View SIH Winner PPTs ↗
+            </span>
+          </a>
+        </div>
+      </div>
+
       {/* Add Second Problem Statement Modal */}
       {isAddPSModalOpen && (
         <Modal
