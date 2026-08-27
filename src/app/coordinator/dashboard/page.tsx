@@ -397,9 +397,16 @@ export default function CoordinatorDashboard() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Embedded PPT generator link
-  // Uses Microsoft Office View online link as embedding tool for standard pptx files.
+  // Embedded presentation generator link
   const getEmbedUrl = (team: Team) => {
+    if (team.google_slides_url) {
+      const url = team.google_slides_url;
+      const match = url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        return `https://docs.google.com/presentation/d/${match[1]}/embed?start=false&loop=false`;
+      }
+      return url;
+    }
     if (team.ppt_submission?.file_url) {
       const url = team.ppt_submission.file_url;
       // If it's a PDF, render natively
@@ -410,6 +417,25 @@ export default function CoordinatorDashboard() {
       return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     }
     // Fallback Mock URL or empty
+    return '';
+  };
+
+  const getFullscreenEmbedUrl = (team: Team) => {
+    if (team.google_slides_url) {
+      const url = team.google_slides_url;
+      const match = url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        return `https://docs.google.com/presentation/d/${match[1]}/embed?start=false&loop=false`;
+      }
+      return url;
+    }
+    if (team.ppt_submission?.file_url) {
+      const url = team.ppt_submission.file_url;
+      if (url.toLowerCase().endsWith('.pdf')) {
+        return `${url}#page=${currentPage}`;
+      }
+      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}&wdStartOn=${currentPage}`;
+    }
     return '';
   };
 
@@ -519,46 +545,53 @@ export default function CoordinatorDashboard() {
                   <h2 className="text-lg font-bold text-slate-900">{selectedTeam.team_name}</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      if (selectedTeam.ppt_submission?.file_url) {
-                        window.open(selectedTeam.ppt_submission.file_url, '_blank');
-                      } else {
-                        alert('No PPT file URL available.');
-                      }
-                    }}
-                    className="p-2 text-slate-600 hover:text-indigo-600 bg-slate-100 rounded-xl hover:bg-indigo-50 transition-all cursor-pointer"
-                    title="Open PPT"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (selectedTeam.ppt_submission?.file_url) {
+                  {selectedTeam.google_slides_url ? (
+                    <button
+                      onClick={() => {
+                        window.open(selectedTeam.google_slides_url || '', '_blank');
+                      }}
+                      className="px-3.5 py-2 text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                      title="Open Google Slides"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Open Google Slides
+                    </button>
+                  ) : selectedTeam.ppt_submission?.file_url ? (
+                    <button
+                      onClick={() => {
+                        window.open(selectedTeam.ppt_submission?.file_url || '', '_blank');
+                      }}
+                      className="px-3.5 py-2 text-slate-700 bg-slate-100 border border-slate-200 hover:bg-slate-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                      title="Open Legacy PPT"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Open Legacy PPT
+                    </button>
+                  ) : null}
+
+                  {(selectedTeam.google_slides_url || selectedTeam.ppt_submission?.file_url) ? (
+                    <button
+                      onClick={() => {
                         setIsPresentationFullScreen(true);
                         setCurrentPage(1);
                         setZoomLevel(100);
                         document.documentElement.requestFullscreen?.().catch(() => {});
-                      } else {
-                        alert('No slides available.');
-                      }
-                    }}
-                    className="px-3 py-2 text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-all cursor-pointer flex items-center gap-1 font-bold text-[11px]"
-                    title="Present Fullscreen"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" /> Present Fullscreen
-                  </button>
+                      }}
+                      className="px-3 py-2 text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-all cursor-pointer flex items-center gap-1 font-bold text-[11px]"
+                      title="Present Fullscreen"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" /> Present Fullscreen
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
-              {/* PPT Embedded View */}
-              {selectedTeam.ppt_submission?.file_url ? (
+              {/* Presentation Embedded View */}
+              {(selectedTeam.google_slides_url || selectedTeam.ppt_submission?.file_url) ? (
                 <div className="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-slate-200">
                   <iframe
                     src={getEmbedUrl(selectedTeam)}
                     className="w-full h-full border-0"
                     allowFullScreen
-                    title={`${selectedTeam.team_name} PPT Deck`}
+                    title={`${selectedTeam.team_name} Presentation Deck`}
                   />
                 </div>
               ) : (
@@ -762,14 +795,14 @@ export default function CoordinatorDashboard() {
         <div className="space-y-6">
           <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Tv className="w-5 h-5 text-indigo-600" /> Active Roster Directory (Teams with Uploaded PPTs)
+              <Tv className="w-5 h-5 text-indigo-600" /> Active Roster Directory (Teams with Presentation Slides)
             </h2>
             <p className="text-xs text-slate-500">
-              Below is a list of registered teams that have uploaded their presentation slides. Click any team to display their details, load the timer, and present their slides via the projector.
+              Below is a list of registered teams that have submitted their presentation. Click any team to display their details, load the timer, and present their slides.
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-              {teams.filter(t => t.ppt_submission?.file_url).map(t => (
+              {teams.filter(t => t.google_slides_url || t.ppt_submission?.file_url).map(t => (
                 <button
                   key={t.team_id}
                   onClick={() => selectTeamForPresentation(t)}
@@ -799,9 +832,9 @@ export default function CoordinatorDashboard() {
                   </div>
                 </button>
               ))}
-              {teams.filter(t => t.ppt_submission?.file_url).length === 0 && (
+              {teams.filter(t => t.google_slides_url || t.ppt_submission?.file_url).length === 0 && (
                 <div className="col-span-full py-8 text-center text-xs text-slate-400 font-bold">
-                  No teams have uploaded their PPT yet.
+                  No teams have configured their Google Slides link or uploaded their PPT yet.
                 </div>
               )}
             </div>
@@ -929,11 +962,7 @@ export default function CoordinatorDashboard() {
             }}
           >
             <iframe
-              src={
-                selectedTeam.ppt_submission?.file_url.toLowerCase().endsWith('.pdf')
-                  ? `${selectedTeam.ppt_submission?.file_url}#page=${currentPage}`
-                  : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(selectedTeam.ppt_submission?.file_url || '')}&wdStartOn=${currentPage}`
-              }
+              src={getFullscreenEmbedUrl(selectedTeam)}
               className="w-full h-full border-0 rounded-lg"
               allowFullScreen
               title={`${selectedTeam.team_name} PPT Fullscreen`}

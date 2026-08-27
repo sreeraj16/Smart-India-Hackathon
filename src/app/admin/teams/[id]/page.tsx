@@ -6,7 +6,7 @@ import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team, JuryEvaluation } from '@/lib/types';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function AdminTeamDetailPage() {
@@ -271,20 +271,20 @@ export default function AdminTeamDetailPage() {
 
       </div>
 
-      {/* Admin PPT Viewer Section */}
+      {/* Admin Presentation Viewer Section */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-emerald-600" /> Presentation Viewer (Mapped to Team {team.team_id})
+          <FileText className="w-5 h-5 text-emerald-600" /> Presentation Viewer (Team {team.team_id})
         </h3>
 
-        {ppt ? (
+        {team.google_slides_url ? (
           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-bold text-slate-900">{ppt.file_name}</div>
-                <div className="text-xs text-slate-500 mt-0.5">Uploaded: {new Date(ppt.uploaded_at).toLocaleString()} • Size: {ppt.file_size || '3.4 MB'}</div>
+                <div className="text-sm font-bold text-slate-900">Google Slides Presentation Link</div>
+                <div className="text-xs text-slate-500 mt-0.5 break-all font-semibold text-indigo-650">{team.google_slides_url}</div>
               </div>
-              <Badge variant="green">🟢 Uploaded & Verified</Badge>
+              <Badge variant="green">🟢 Configured</Badge>
             </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
@@ -296,18 +296,42 @@ export default function AdminTeamDetailPage() {
               </button>
 
               <button
-                onClick={() => {
-                  alert(`Downloading ${ppt.file_name} via Supabase Storage signed URL...`);
-                }}
+                onClick={() => window.open(team.google_slides_url || '', '_blank')}
                 className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <Download className="w-4 h-4" /> Download Presentation File
+                <ExternalLink className="w-4 h-4" /> Open Google Slides (New Tab)
+              </button>
+            </div>
+          </div>
+        ) : team.ppt_submission ? (
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-slate-900">Legacy File: {team.ppt_submission.file_name}</div>
+                <div className="text-xs text-slate-500 mt-0.5">Uploaded: {new Date(team.ppt_submission.uploaded_at).toLocaleString()} • Size: {team.ppt_submission.file_size || '3.4 MB'}</div>
+              </div>
+              <Badge variant="green">🟢 Uploaded Backup</Badge>
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button
+                onClick={() => setIsPreviewOpen(true)}
+                className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Maximize2 className="w-4 h-4" /> Open In-App Presentation Viewer
+              </button>
+
+              <button
+                onClick={() => window.open(team.ppt_submission?.file_url || '', '_blank')}
+                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download className="w-4 h-4" /> Download Backup PPT
               </button>
             </div>
           </div>
         ) : (
           <div className="text-center py-8 bg-amber-50 rounded-2xl border border-amber-200">
-            <p className="text-xs text-amber-800 font-bold">No Presentation File Uploaded Yet by Team.</p>
+            <p className="text-xs text-amber-800 font-bold">No Google Slides link or legacy presentation file uploaded yet.</p>
           </div>
         )}
       </div>
@@ -507,8 +531,19 @@ export default function AdminTeamDetailPage() {
       )}
 
       {/* In-App Presentation Viewer Modal */}
-      {isPreviewOpen && ppt && (() => {
-        const fileUrl = ppt.file_url || supabase.storage.from('SIH-Presentation').getPublicUrl(ppt.file_path).data.publicUrl;
+      {isPreviewOpen && (team.google_slides_url || team.ppt_submission) && (() => {
+        let embedUrl = '';
+        if (team.google_slides_url) {
+          const match = team.google_slides_url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+          embedUrl = match && match[1] 
+            ? `https://docs.google.com/presentation/d/${match[1]}/embed?start=false&loop=false`
+            : team.google_slides_url;
+        } else if (team.ppt_submission) {
+          const fileUrl = team.ppt_submission.file_url || supabase.storage.from('SIH-Presentation').getPublicUrl(team.ppt_submission.file_path).data.publicUrl;
+          embedUrl = team.ppt_submission.file_name.toLowerCase().endsWith('.pdf')
+            ? fileUrl
+            : `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+        }
         return (
           <Modal
             isOpen={isPreviewOpen}
@@ -518,15 +553,17 @@ export default function AdminTeamDetailPage() {
           >
             <div className="space-y-4">
               <div className="w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-950 min-h-[500px]">
-                <iframe
-                  src={
-                    ppt.file_name.toLowerCase().endsWith('.pdf')
-                      ? fileUrl
-                      : `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`
-                  }
-                  className="w-full h-[500px] border-0"
-                  allowFullScreen
-                />
+                {embedUrl ? (
+                  <iframe
+                    src={embedUrl}
+                    className="w-full h-[500px] border-0"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="h-[500px] flex items-center justify-center text-xs text-slate-400">
+                    Unable to load presentation preview url.
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-center pt-2">
                 <span className="text-xs text-slate-500">Authorized Admin Preview</span>

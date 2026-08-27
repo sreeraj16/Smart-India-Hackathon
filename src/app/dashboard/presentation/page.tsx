@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { HackathonStateManager } from '@/lib/store/stateManager';
-import { Team, PPTSubmission } from '@/lib/types';
-import { FileCheck, Upload, Eye, RefreshCw, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Team } from '@/lib/types';
+import { FileCheck, ExternalLink, Link2, CheckCircle2, AlertCircle, Save, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function PresentationPage() {
   const [team, setTeam] = useState<Team | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [slidesUrl, setSlidesUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -17,81 +17,35 @@ export default function PresentationPage() {
     const user = HackathonStateManager.getCurrentUser();
     const loadedTeam = HackathonStateManager.getTeamById(user?.team_id || 'SIH-2026-1001');
     setTeam(loadedTeam || null);
+    if (loadedTeam?.google_slides_url) {
+      setSlidesUrl(loadedTeam.google_slides_url);
+    }
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    if (!file) return;
-
-    const validTypes = [
-      'application/pdf',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    ];
-
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|ppt|pptx)$/i)) {
-      setErrorMsg('Invalid file type! Please upload a PPT, PPTX, or PDF presentation file.');
-      setSelectedFile(null);
-      return;
-    }
-
-    if (file.size > 20 * 1024 * 1024) {
-      setErrorMsg('File size exceeds maximum allowed limit of 20 MB.');
-      setSelectedFile(null);
-      return;
-    }
-
-    setSelectedFile(file);
+  const validateGoogleSlidesLink = (url: string): boolean => {
+    return url.trim().toLowerCase().startsWith('https://docs.google.com/presentation/');
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile || !team) return;
-
-    setUploading(true);
+  const handleSaveLink = async () => {
+    if (!team) return;
     setErrorMsg('');
     setSuccessMsg('');
 
+    const cleanUrl = slidesUrl.trim();
+
+    if (!cleanUrl) {
+      setErrorMsg('Please enter a Google Slides URL.');
+      return;
+    }
+
+    if (!validateGoogleSlidesLink(cleanUrl)) {
+      setErrorMsg('Invalid URL! The link must be a valid Google Slides URL starting with "https://docs.google.com/presentation/".');
+      return;
+    }
+
+    setSaving(true);
     try {
-      // Sanitize the filename to prevent invalid key errors on Supabase storage (replaces spaces, parentheses, en-dashes, etc. with underscores)
-      const cleanFileName = selectedFile.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_')
-        .replace(/_+/g, '_');
-      const filePath = `${team.team_id}/${cleanFileName}`;
-
-      // 1. Upload file to Supabase Storage bucket 'SIH-Presentation'
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('SIH-Presentation')
-        .upload(filePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(`Storage upload error: ${uploadError.message}`);
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('SIH-Presentation')
-        .getPublicUrl(filePath);
-
-      const fileUrl = urlData?.publicUrl || '';
-
-      const submission: PPTSubmission = {
-        ppt_id: `ppt-${Date.now()}`,
-        team_id: team.team_id,
-        file_name: selectedFile.name,
-        file_path: filePath,
-        file_url: fileUrl,
-        file_size: `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`,
-        status: 'Uploaded',
-        uploaded_at: new Date().toISOString()
-      };
-
-      // 2. Ensure the team exists in the Supabase database (auto-sync for teams registered before DB integration)
+      // 1. Ensure the team row exists in the Supabase database
       const { data: existingTeam } = await supabase
         .from('teams')
         .select('team_id')
@@ -99,19 +53,16 @@ export default function PresentationPage() {
         .maybeSingle();
 
       if (!existingTeam) {
-        const { error: teamSyncError } = await supabase
+        // Auto-sync team metadata to Supabase
+        await supabase
           .from('teams')
           .insert({
             team_id: team.team_id,
             team_name: team.team_name,
-            registration_status: team.registration_status || 'registered'
+            registration_status: team.registration_status || 'registered',
+            google_slides_url: cleanUrl
           });
 
-        if (teamSyncError) {
-          throw new Error(`Team auto-sync error: ${teamSyncError.message}`);
-        }
-
-        // Auto-sync members
         if (team.members && team.members.length > 0) {
           const memberInserts = team.members.map(m => ({
             team_id: team.team_id,
@@ -123,11 +74,9 @@ export default function PresentationPage() {
             year: m.year,
             is_lead: !!m.is_lead
           }));
-
           await supabase.from('team_members').insert(memberInserts);
         }
 
-        // Auto-sync selected problem statements
         if (team.selected_problem_statements && team.selected_problem_statements.length > 0) {
           await supabase.from('problem_statements').upsert(
             team.selected_problem_statements.map(ps => ({
@@ -144,35 +93,28 @@ export default function PresentationPage() {
             problem_id: ps.problem_id,
             selection_order: idx + 1
           }));
-
           await supabase.from('team_problem_statements').insert(mappingInserts);
         }
+      } else {
+        // Update link
+        const { error } = await supabase
+          .from('teams')
+          .update({ google_slides_url: cleanUrl })
+          .eq('team_id', team.team_id);
+
+        if (error) throw error;
       }
 
-      // 3. Insert/Upsert into Supabase Database 'ppt_submissions' table
-      const { error: dbError } = await supabase
-        .from('ppt_submissions')
-        .upsert({
-          team_id: team.team_id,
-          file_name: selectedFile.name,
-          file_path: filePath,
-          status: 'Uploaded',
-          uploaded_at: submission.uploaded_at
-        }, { onConflict: 'team_id' });
-
-      if (dbError) {
-        throw new Error(`Database record save error: ${dbError.message}`);
-      }
-
-      HackathonStateManager.addPPTSubmission(team.team_id, submission);
-      setTeam({ ...team, ppt_submission: submission });
-      setSuccessMsg('Presentation file uploaded successfully to Supabase Storage!');
+      // Update state manager and local state
+      const updatedTeam = { ...team, google_slides_url: cleanUrl };
+      HackathonStateManager.updateTeam(updatedTeam);
+      setTeam(updatedTeam);
+      setSuccessMsg('Google Slides presentation link updated successfully!');
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred during file upload.');
+      setErrorMsg(err.message || 'An error occurred while saving the link.');
     } finally {
-      setUploading(false);
-      setSelectedFile(null);
+      setSaving(false);
     }
   };
 
@@ -182,10 +124,20 @@ export default function PresentationPage() {
       {/* Header */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
         <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-          <FileCheck className="w-6 h-6 text-brand-600" /> PPT / Presentation Upload
+          <FileCheck className="w-6 h-6 text-brand-600" /> Google Slides Presentation Link
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Prepare your presentation deck in your preferred offline tool (PowerPoint, Keynote, Canva) and upload the final .PPT, .PPTX, or .PDF file before your presentation session.
+          Provide your team's Google Slides presentation URL. Ensure that your slideshow sharing settings are configured correctly so coordinators and the jury panel can view it during screening.
+        </p>
+      </div>
+
+      {/* Permissions Instruction Notice */}
+      <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200 shadow-sm space-y-2">
+        <h3 className="text-xs font-black text-amber-900 uppercase tracking-wide flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-amber-600" /> Sharing Permissions Check Required
+        </h3>
+        <p className="text-xs text-amber-800 leading-relaxed font-medium">
+          Make sure your Google Slides sharing settings are set to <strong>"Anyone with the link can view"</strong> (Viewer). If the slideshow requires specific domain access, coordinators and jury evaluators will not be able to load or review your presentation.
         </p>
       </div>
 
@@ -201,84 +153,73 @@ export default function PresentationPage() {
         </div>
       )}
 
-      {/* Upload Box */}
+      {/* URL Link Input Box */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
         
-        {team?.ppt_submission ? (
-          /* Existing Submission Details */
-          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> File Verified & Uploaded
-              </span>
-              <span className="text-xs text-slate-500 font-medium">
-                Uploaded: {new Date(team.ppt_submission.uploaded_at).toLocaleString()}
-              </span>
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-700">Paste your Google Slides presentation URL</label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link2 className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+              <input
+                type="url"
+                placeholder="https://docs.google.com/presentation/d/.../edit?usp=sharing"
+                value={slidesUrl}
+                onChange={(e) => setSlidesUrl(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
+              />
             </div>
-
-            <div className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200">
-              <div className="w-12 h-12 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div className="flex-1 truncate">
-                <div className="text-sm font-bold text-slate-900 truncate">{team.ppt_submission.file_name}</div>
-                <div className="text-xs text-slate-500">{team.ppt_submission.file_size || '3.4 MB'} • Supabase Bucket: `SIH-Presentation`</div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                onClick={() => {
-                  if (team.ppt_submission?.file_url) {
-                    window.open(team.ppt_submission.file_url, '_blank');
-                  } else {
-                    alert(`Opening preview for ${team.ppt_submission?.file_name}`);
-                  }
-                }}
-                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Eye className="w-4 h-4" /> View File Preview
-              </button>
-
-              <label className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer">
-                <RefreshCw className="w-4 h-4" /> Replace File
-                <input type="file" accept=".pdf,.ppt,.pptx" onChange={handleFileChange} className="hidden" />
-              </label>
-            </div>
-          </div>
-        ) : (
-          /* Initial Upload Drag Drop Area */
-          <div className="border-2 border-dashed border-slate-300 hover:border-brand-500 bg-slate-50/50 rounded-2xl p-8 text-center transition-all">
-            <Upload className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-900 mb-1">Upload Presentation File</h3>
-            <p className="text-xs text-slate-500 mb-4">Supported formats: .PPT, .PPTX, .PDF (Max file size: 20 MB)</p>
-
-            <label className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow transition-all cursor-pointer">
-              Choose File
-              <input type="file" accept=".pdf,.ppt,.pptx" onChange={handleFileChange} className="hidden" />
-            </label>
-
-            {selectedFile && (
-              <div className="mt-4 text-xs font-bold text-brand-700 bg-brand-50 p-3 rounded-xl border border-brand-200 max-w-sm mx-auto">
-                Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)} MB)
-              </div>
-            )}
-          </div>
-        )}
-
-        {selectedFile && (
-          <div className="flex justify-end pt-2">
+            
             <button
-              onClick={handleUpload}
-              disabled={uploading}
-              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              onClick={handleSaveLink}
+              disabled={saving}
+              className="px-5 py-3 bg-brand-650 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 text-xs cursor-pointer disabled:opacity-50"
             >
-              {uploading ? 'Uploading to Supabase Storage...' : 'Upload Presentation Deck'}
+              <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Link'}
+            </button>
+          </div>
+        </div>
+
+        {team?.google_slides_url && (
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4" /> Presentation Link Configured
+            </div>
+            
+            <button
+              onClick={() => window.open(team.google_slides_url || '', '_blank')}
+              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <ExternalLink className="w-4 h-4" /> Open Presentation
             </button>
           </div>
         )}
 
       </div>
+
+      {/* Fallback Legacy Upload Details */}
+      {team?.ppt_submission && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <FileText className="w-4 h-4" /> Legacy PowerPoint Upload Backup
+          </div>
+          <p className="text-[11px] text-slate-500 leading-normal">
+            A PowerPoint upload was found from a previous submission. If you are migrating to Google Slides, please provide your link above; your legacy PowerPoint file is preserved below as an operational fallback.
+          </p>
+          <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="truncate flex-1">
+              <div className="text-xs font-bold text-slate-700 truncate">{team.ppt_submission.file_name}</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">{team.ppt_submission.file_size} • Uploaded: {new Date(team.ppt_submission.uploaded_at).toLocaleDateString()}</div>
+            </div>
+            <button
+              onClick={() => window.open(team.ppt_submission?.file_url || '', '_blank')}
+              className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-xs rounded-lg transition-colors cursor-pointer border border-slate-200"
+            >
+              Open Backup File
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

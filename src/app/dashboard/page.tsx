@@ -149,15 +149,23 @@ export default function TeamDashboardPage() {
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-xs font-bold text-slate-400 uppercase">PPT Presentation Status</div>
-          <div className="mt-2">
-            {pptUploaded ? (
-              <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 🟢 Uploaded
-              </span>
+          <div className="text-xs font-bold text-slate-400 uppercase">Google Slides Link</div>
+          <div className="mt-2 flex flex-col gap-1">
+            {team.google_slides_url ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full w-max">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 🟢 Configured
+                </span>
+                <button
+                  onClick={() => window.open(team.google_slides_url || '', '_blank')}
+                  className="text-[10px] text-indigo-650 hover:underline font-bold text-left mt-1.5 flex items-center gap-0.5"
+                >
+                  Open Slides ↗
+                </button>
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span> 🟡 Pending Upload
+              <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full w-max">
+                <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span> 🟡 Pending Link
               </span>
             )}
           </div>
@@ -234,7 +242,7 @@ export default function TeamDashboardPage() {
               href="/dashboard/presentation"
               className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
             >
-              Go to Presentation Upload <ArrowRight className="w-4 h-4" />
+              Go to Presentation Link <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

@@ -94,7 +94,8 @@ export class HackathonStateManager {
           panel: updatedTeam.panel,
           presentation_completed: updatedTeam.presentation_completed,
           completed_by: updatedTeam.completed_by,
-          completed_at: updatedTeam.completed_at
+          completed_at: updatedTeam.completed_at,
+          google_slides_url: updatedTeam.google_slides_url
         }).eq('team_id', updatedTeam.team_id).then(({ error }) => {
           if (error) console.error('Failed to sync team update to Supabase:', error);
         });
@@ -442,6 +443,7 @@ export class HackathonStateManager {
           presentation_completed: !!t.presentation_completed,
           completed_by: t.completed_by || undefined,
           completed_at: t.completed_at || undefined,
+          google_slides_url: t.google_slides_url || undefined,
           created_at: t.created_at || new Date().toISOString(),
           members,
           selected_problem_statements: selectedPS,

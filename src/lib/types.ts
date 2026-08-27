@@ -50,6 +50,7 @@ export interface Team {
   presentation_completed?: boolean;
   completed_by?: string;
   completed_at?: string;
+  google_slides_url?: string | null;
   created_at: string;
 }
 

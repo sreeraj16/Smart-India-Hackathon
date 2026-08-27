@@ -26,10 +26,10 @@ export default function AdminTeamsPage() {
                           team.team_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           team.team_lead_name.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const hasPpt = !!team.ppt_submission;
+    const hasSlides = !!team.google_slides_url || !!team.ppt_submission;
     const matchesPpt = pptFilter === 'All' ||
-                      (pptFilter === 'Uploaded' && hasPpt) ||
-                      (pptFilter === 'Pending' && !hasPpt);
+                      (pptFilter === 'Uploaded' && hasSlides) ||
+                      (pptFilter === 'Pending' && !hasSlides);
 
     const matchesStatus = statusFilter === 'All' || team.registration_status === statusFilter;
 
@@ -110,14 +110,14 @@ export default function AdminTeamsPage() {
                   <th className="py-3.5 px-4">Team Lead</th>
                   <th className="py-3.5 px-4 text-center">Members</th>
                   <th className="py-3.5 px-4">Problem Statement</th>
-                  <th className="py-3.5 px-4">PPT Status</th>
+                  <th className="py-3.5 px-4">Presentation Link</th>
                   <th className="py-3.5 px-4 text-center">Jury Accumulated Score</th>
                   <th className="py-3.5 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
                 {filteredTeams.map((team) => {
-                  const hasPpt = !!team.ppt_submission;
+                  const hasSlides = !!team.google_slides_url || !!team.ppt_submission;
                   const primaryPS = team.selected_problem_statements[0];
 
                   return (
@@ -134,8 +134,21 @@ export default function AdminTeamsPage() {
                         <div className="text-[10px] text-slate-500 truncate">{primaryPS ? primaryPS.problem_title : '-'}</div>
                       </td>
                       <td className="py-3.5 px-4">
-                        {hasPpt ? (
-                           <Badge variant="green">🟢 Uploaded</Badge>
+                        {team.google_slides_url ? (
+                          <button
+                            onClick={() => window.open(team.google_slides_url || '', '_blank')}
+                            className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold rounded-lg hover:bg-indigo-100 transition-all cursor-pointer text-[10px] inline-flex items-center gap-0.5"
+                          >
+                            Open Google Slides ↗
+                          </button>
+                        ) : team.ppt_submission?.file_url ? (
+                          <button
+                            onClick={() => window.open(team.ppt_submission?.file_url || '', '_blank')}
+                            className="px-2.5 py-1 bg-slate-150 border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-all cursor-pointer text-[10px] inline-flex items-center gap-0.5"
+                            title="Legacy PPT Backup"
+                          >
+                            Open PPT (Backup) ↗
+                          </button>
                         ) : (
                           <Badge variant="yellow">🟡 Pending</Badge>
                         )}
