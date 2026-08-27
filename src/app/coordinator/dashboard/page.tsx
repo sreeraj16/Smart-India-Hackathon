@@ -139,6 +139,7 @@ export default function CoordinatorDashboard() {
           presentation_completed: !!t.presentation_completed,
           completed_by: t.completed_by || null,
           completed_at: t.completed_at || null,
+          google_slides_url: t.google_slides_url || null,
           created_at: t.created_at
         };
       });
@@ -208,26 +209,40 @@ export default function CoordinatorDashboard() {
     if (!buzzerEnabled) return;
     try {
       stopBuzzerSound(); // clean up old sound references
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // We will loop a pulsing buzzer beep
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      oscillator.type = 'sawtooth';
-      oscillator.frequency.setValueAtTime(140, audioCtx.currentTime); // Low grating pitch
-
-      // Pulsing effect
-      gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-
-      oscillator.start();
       setIsBuzzerSounding(true);
 
-      (window as any).activeBuzzerOscillator = oscillator;
-      (window as any).activeBuzzerContext = audioCtx;
+      const triggerChime = () => {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        const playChime = (frequency: number, startTime: number, duration: number) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frequency, startTime);
+          
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        };
+
+        // Play professional dual-chime chord: E5 (660Hz) and A5 (880Hz)
+        playChime(660, audioCtx.currentTime, 0.4);
+        playChime(880, audioCtx.currentTime + 0.12, 0.5);
+
+        (window as any).activeChimeContexts = (window as any).activeChimeContexts || [];
+        (window as any).activeChimeContexts.push(audioCtx);
+      };
+
+      triggerChime();
+      const intervalId = setInterval(triggerChime, 1500);
+      (window as any).activeBuzzerInterval = intervalId;
     } catch (e) {
       console.error('Audio synthesiser failed:', e);
     }
@@ -235,14 +250,15 @@ export default function CoordinatorDashboard() {
 
   const stopBuzzerSound = () => {
     try {
-      if ((window as any).activeBuzzerOscillator) {
-        (window as any).activeBuzzerOscillator.stop();
-        (window as any).activeBuzzerOscillator.disconnect();
-        (window as any).activeBuzzerOscillator = null;
+      if ((window as any).activeBuzzerInterval) {
+        clearInterval((window as any).activeBuzzerInterval);
+        (window as any).activeBuzzerInterval = null;
       }
-      if ((window as any).activeBuzzerContext) {
-        (window as any).activeBuzzerContext.close();
-        (window as any).activeBuzzerContext = null;
+      if ((window as any).activeChimeContexts) {
+        (window as any).activeChimeContexts.forEach((ctx: any) => {
+          try { ctx.close(); } catch {}
+        });
+        (window as any).activeChimeContexts = [];
       }
       setIsBuzzerSounding(false);
     } catch (e) {
@@ -598,9 +614,9 @@ export default function CoordinatorDashboard() {
                 <div className="aspect-video w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-6 text-center space-y-3">
                   <AlertTriangle className="w-10 h-10 text-rose-500 animate-pulse" />
                   <div>
-                    <h3 className="font-extrabold text-slate-900 text-sm">No PPT file has been uploaded</h3>
+                    <h3 className="font-extrabold text-slate-900 text-sm">No Presentation Slides Submitted</h3>
                     <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                      This team has not uploaded their presentation slides yet. Direct them to their Dashboard presentation uploader.
+                      This team has not provided their Google Slides link or legacy presentation file. Direct them to their Dashboard presentation settings.
                     </p>
                   </div>
                 </div>
