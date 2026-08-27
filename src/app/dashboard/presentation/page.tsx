@@ -173,7 +173,7 @@ export default function PresentationPage() {
             <button
               onClick={handleSaveLink}
               disabled={saving}
-              className="px-5 py-3 bg-brand-650 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 text-xs cursor-pointer disabled:opacity-50"
+              className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 text-xs cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Link'}
             </button>
@@ -188,7 +188,7 @@ export default function PresentationPage() {
             
             <button
               onClick={() => window.open(team.google_slides_url || '', '_blank')}
-              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <ExternalLink className="w-4 h-4" /> Open Presentation
             </button>
