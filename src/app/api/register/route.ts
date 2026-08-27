@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     const orderNumber = ((count || 0) + 1).toString().padStart(3, '0');
     const primaryPS = selectedPS[0];
     const psId = primaryPS ? primaryPS.problem_id : 'NO-PS';
-    const generatedTeamId = `${teamName}-${psId}-order(${orderNumber})`;
+    const generatedTeamId = `${teamName}_${psId}_${orderNumber}`;
 
     // --- Insert into Database ---
     // 1. Insert team

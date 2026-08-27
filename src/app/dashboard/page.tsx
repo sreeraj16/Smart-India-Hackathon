@@ -128,9 +128,9 @@ export default function TeamDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="text-xs font-bold text-slate-400 uppercase">Team Lead Email</div>
-          <div className="text-sm font-bold text-slate-900 mt-1 truncate" title={team.team_lead_email}>{team.team_lead_email}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Official Contact Email</div>
+          <div className="text-xs font-bold text-slate-400 uppercase">Team ID</div>
+          <div className="text-xs font-extrabold text-slate-900 mt-1 break-all" title={team.team_id}>{team.team_id}</div>
+          <div className="text-[11px] text-slate-500 mt-1">Official Identifier</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
