@@ -98,7 +98,7 @@ export default function JuryDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {teams.map((team) => {
             const myEval = evaluations.find(e => e.jury_id === currentJuryId && e.team_id === team.team_id);
-            const hasPpt = !!team.ppt_submission;
+            const hasSlides = !!(team.google_slides_url || team.ppt_submission);
             const primaryPS = team.selected_problem_statements[0];
 
             return (
@@ -130,8 +130,8 @@ export default function JuryDashboardPage() {
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">
-                    PPT Deck: {hasPpt ? '🟢 Ready' : '🔴 Missing'}
+                  <span className="text-xs text-slate-500 font-bold">
+                    Google Slides: {hasSlides ? '🟢 Placed' : '🔴 Not Placed'}
                   </span>
 
                   <Link
