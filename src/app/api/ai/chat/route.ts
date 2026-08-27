@@ -9,27 +9,61 @@ export async function POST(req: Request) {
     const apiKey = process.env.LLM_API_KEY;
 
     if (apiKey) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert AI Hackathon Assistant for SIH 2026 at RGUKT Nuzvid. Team Name: ${teamName}. Selected Problem Statement: ${problemStatement?.problem_title}. Domain: ${problemStatement?.domain}. Provide practical advice on architecture, pitch structure, technical feasibility, and jury Q&A.`
+      if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIzaSy')) {
+        // Dynamic routing to Google Gemini API
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{
+                text: `You are an expert AI Hackathon Assistant for SIH 2026 at RGUKT Nuzvid. Team Name: ${teamName}. Selected Problem Statement: ${problemStatement?.problem_title}. Domain: ${problemStatement?.domain}. Provide practical advice on architecture, pitch structure, technical feasibility, and jury Q&A.`
+              }]
             },
-            { role: 'user', content: query }
-          ]
-        })
-      });
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: query }]
+              }
+            ]
+          })
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json({ reply: data.choices[0].message.content });
+        if (response.ok) {
+          const data = await response.json();
+          const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (reply) {
+            return NextResponse.json({ reply });
+          }
+        } else {
+          console.error('Gemini API Error:', await response.text());
+        }
+      } else {
+        // Fallback to OpenAI API
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert AI Hackathon Assistant for SIH 2026 at RGUKT Nuzvid. Team Name: ${teamName}. Selected Problem Statement: ${problemStatement?.problem_title}. Domain: ${problemStatement?.domain}. Provide practical advice on architecture, pitch structure, technical feasibility, and jury Q&A.`
+              },
+              { role: 'user', content: query }
+            ]
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return NextResponse.json({ reply: data.choices[0].message.content });
+        }
       }
     }
 
