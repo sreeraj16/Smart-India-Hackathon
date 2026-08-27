@@ -76,3 +76,9 @@ DROP POLICY IF EXISTS "Allow public write of profiles" ON public.profiles;
 CREATE POLICY "Allow public read of profiles" ON public.profiles FOR SELECT TO public USING (true);
 CREATE POLICY "Allow public write of profiles" ON public.profiles FOR ALL TO public USING (true) WITH CHECK (true);
 
+-- 9. Add ON DELETE CASCADE for audit_logs team_id relation
+ALTER TABLE public.audit_logs DROP CONSTRAINT IF EXISTS audit_logs_team_id_fkey;
+ALTER TABLE public.audit_logs 
+    ADD CONSTRAINT audit_logs_team_id_fkey 
+    FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
