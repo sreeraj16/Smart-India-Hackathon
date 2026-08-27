@@ -3,6 +3,12 @@
 -- Copy and paste this script directly into the Supabase SQL Editor
 -- ==========================================
 
+-- 0. Ensure teams table has required columns for panel assignment and completion tracking
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS panel VARCHAR(50) DEFAULT 'Panel 1';
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS presentation_completed BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_by VARCHAR(50);
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;
+
 -- 1. Alter jury_id column type to VARCHAR(100) to support coordinator entries
 ALTER TABLE public.jury_evaluations ALTER COLUMN jury_id TYPE VARCHAR(100);
 
@@ -97,4 +103,7 @@ ALTER TABLE public.team_problem_statements ADD CONSTRAINT team_problem_statement
 
 ALTER TABLE public.final_results DROP CONSTRAINT IF EXISTS final_results_team_id_fkey;
 ALTER TABLE public.final_results ADD CONSTRAINT final_results_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(team_id) ON DELETE CASCADE;
+
+-- 10. Reload schema cache in PostgREST
+NOTIFY pgrst, 'reload schema';
 

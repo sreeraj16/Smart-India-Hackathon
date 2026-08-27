@@ -28,6 +28,30 @@ export default function CoordinatorDashboard() {
   const [searchResults, setSearchResults] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
+  // Fullscreen presentation states
+  const [isPresentationFullScreen, setIsPresentationFullScreen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    if (!isPresentationFullScreen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        setCurrentPage(prev => prev + 1);
+      } else if (e.key === 'ArrowLeft') {
+        setCurrentPage(prev => Math.max(1, prev - 1));
+      } else if (e.key === 'Escape') {
+        setIsPresentationFullScreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPresentationFullScreen]);
+
   // Stats Counters
   const [totalPanelTeams, setTotalPanelTeams] = useState(0);
   const [completedPanelTeams, setCompletedPanelTeams] = useState(0);
@@ -314,7 +338,8 @@ export default function CoordinatorDashboard() {
         .from('teams')
         .update({
           presentation_completed: true,
-          completed_by: coordinatorPanel
+          completed_by: coordinatorPanel,
+          completed_at: completedTime
         })
         .eq('team_id', selectedTeam.team_id);
 
@@ -342,7 +367,8 @@ export default function CoordinatorDashboard() {
           return {
             ...t,
             presentation_completed: true,
-            completed_by: coordinatorPanel
+            completed_by: coordinatorPanel,
+            completed_at: completedTime
           };
         }
         return t;
@@ -353,7 +379,8 @@ export default function CoordinatorDashboard() {
       setSelectedTeam({
         ...selectedTeam,
         presentation_completed: true,
-        completed_by: coordinatorPanel
+        completed_by: coordinatorPanel,
+        completed_at: completedTime
       });
 
       stopBuzzerSound();
@@ -387,7 +414,8 @@ export default function CoordinatorDashboard() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <>
+      <div className="space-y-8 max-w-7xl mx-auto">
       
       {/* Welcome Banner */}
       <div className="bg-indigo-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden border border-indigo-950">
@@ -507,15 +535,18 @@ export default function CoordinatorDashboard() {
                   <button
                     onClick={() => {
                       if (selectedTeam.ppt_submission?.file_url) {
-                        window.open(selectedTeam.ppt_submission.file_url, '_blank');
+                        setIsPresentationFullScreen(true);
+                        setCurrentPage(1);
+                        setZoomLevel(100);
+                        document.documentElement.requestFullscreen?.().catch(() => {});
                       } else {
                         alert('No slides available.');
                       }
                     }}
-                    className="p-2 text-slate-600 hover:text-indigo-600 bg-slate-100 rounded-xl hover:bg-indigo-50 transition-all cursor-pointer"
-                    title="Open in Google Slides"
+                    className="px-3 py-2 text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-all cursor-pointer flex items-center gap-1 font-bold text-[11px]"
+                    title="Present Fullscreen"
                   >
-                    <Maximize2 className="w-4 h-4" />
+                    <Maximize2 className="w-3.5 h-3.5" /> Present Fullscreen
                   </button>
                 </div>
               </div>
@@ -789,5 +820,128 @@ export default function CoordinatorDashboard() {
       )}
 
     </div>
+
+    {/* Fullscreen PPT Presentation Viewer */}
+    {isPresentationFullScreen && selectedTeam && selectedTeam.ppt_submission?.file_url && (
+      <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col select-none">
+        {/* Top Controls Bar */}
+        <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4 text-white">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black uppercase bg-indigo-950 text-indigo-400 border border-indigo-800 px-2.5 py-0.5 rounded-full">
+              {selectedTeam.team_id}
+            </span>
+            <span className="font-extrabold text-sm truncate max-w-xs">{selectedTeam.team_name}</span>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-6">
+            {/* Navigation Controls */}
+            <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer text-xs font-bold"
+                title="Previous Slide"
+              >
+                ◀ Prev
+              </button>
+              <span className="text-xs font-mono font-bold px-2 text-indigo-300">
+                Slide/Page:{' '}
+                <input
+                  type="number"
+                  min={1}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val > 0) setCurrentPage(val);
+                  }}
+                  className="w-12 bg-slate-950 border border-slate-750 text-center text-white py-0.5 px-1 rounded font-bold text-xs"
+                />
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer text-xs font-bold"
+                title="Next Slide"
+              >
+                Next ▶
+              </button>
+            </div>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700 text-xs">
+              <button
+                onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
+                className="px-2 py-1 bg-slate-750 hover:bg-slate-700 rounded font-black cursor-pointer"
+                title="Zoom Out"
+              >
+                A-
+              </button>
+              <span className="font-mono text-indigo-300 font-bold w-12 text-center">{zoomLevel}%</span>
+              <button
+                onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
+                className="px-2 py-1 bg-slate-750 hover:bg-slate-700 rounded font-black cursor-pointer"
+                title="Zoom In"
+              >
+                A+
+              </button>
+              <button
+                onClick={() => setZoomLevel(100)}
+                className="px-2 py-1 bg-slate-750 hover:bg-slate-700 rounded font-bold text-[10px] cursor-pointer"
+              >
+                Reset
+              </button>
+            </div>
+
+            {/* Download/Open */}
+            <button
+              onClick={() => window.open(selectedTeam.ppt_submission?.file_url, '_blank')}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700"
+            >
+              Download / Open
+            </button>
+          </div>
+
+          {/* Exit Controls */}
+          <button
+            onClick={() => {
+              setIsPresentationFullScreen(false);
+              if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+              }
+            }}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+          >
+            Exit Presentation (Esc)
+          </button>
+        </div>
+
+        {/* Main Slide Panel Area */}
+        <div className="flex-1 w-full overflow-auto bg-slate-950 flex items-center justify-center p-4">
+          <div 
+            className="relative shadow-2xl transition-all duration-200 border border-slate-850 bg-slate-900 flex-shrink-0"
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              maxWidth: '1280px', 
+              maxHeight: '720px', 
+              aspectRatio: '16/9',
+              transform: `scale(${zoomLevel / 100})`, 
+              transformOrigin: 'center center' 
+            }}
+          >
+            <iframe
+              src={
+                selectedTeam.ppt_submission?.file_url.toLowerCase().endsWith('.pdf')
+                  ? `${selectedTeam.ppt_submission?.file_url}#page=${currentPage}`
+                  : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(selectedTeam.ppt_submission?.file_url || '')}&wdStartOn=${currentPage}`
+              }
+              className="w-full h-full border-0 rounded-lg"
+              allowFullScreen
+              title={`${selectedTeam.team_name} PPT Fullscreen`}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
