@@ -97,8 +97,18 @@ export async function POST(req: Request) {
     }
 
     // --- Generate identifiers ---
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const generatedTeamId = `SIH-2026-${randomSuffix}`;
+    const { count, error: countError } = await supabase
+      .from('teams')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Error counting teams for registration order:', countError);
+    }
+
+    const orderNumber = ((count || 0) + 1).toString().padStart(3, '0');
+    const primaryPS = selectedPS[0];
+    const psId = primaryPS ? primaryPS.problem_id : 'NO-PS';
+    const generatedTeamId = `${teamName}-${psId}-order(${orderNumber})`;
 
     // --- Insert into Database ---
     // 1. Insert team
