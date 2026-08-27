@@ -99,17 +99,44 @@ export default function AIAssistantPage() {
     if (!textToSend) setInputQuery('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const responseText = generateAIResponse(query, team);
-      const aiMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
-        sender: 'ai',
-        text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, aiMsg]);
-      setIsTyping(false);
-    }, 800);
+    const activePS = team?.selected_problem_statements[0];
+    
+    fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query,
+        problemStatement: activePS,
+        teamName: team?.team_name || 'NeuralCrafters'
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        const responseText = data.reply || generateAIResponse(query, team);
+        const aiMsg: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'ai',
+          text: responseText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      })
+      .catch(err => {
+        console.error('Live AI chat error, falling back to mock:', err);
+        const responseText = generateAIResponse(query, team);
+        const aiMsg: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'ai',
+          text: responseText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      })
+      .finally(() => {
+        setIsTyping(false);
+      });
   };
 
   return (
