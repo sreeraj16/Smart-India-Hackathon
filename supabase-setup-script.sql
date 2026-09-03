@@ -9,6 +9,8 @@ ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS presentation_completed BOOLEAN
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_by VARCHAR(50);
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS google_slides_url VARCHAR(500);
+ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS gender VARCHAR(10) DEFAULT 'M';
+
 
 -- 1. Alter jury_id column type to VARCHAR(100) to support coordinator entries
 ALTER TABLE public.jury_evaluations ALTER COLUMN jury_id TYPE VARCHAR(100);

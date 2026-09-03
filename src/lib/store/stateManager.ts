@@ -133,6 +133,21 @@ export class HackathonStateManager {
     }
   }
 
+  static editTeamRegistration(updatedTeam: Team): void {
+    const teams = this.getTeams();
+    const idx = teams.findIndex(t => t.team_id === updatedTeam.team_id);
+    if (idx !== -1) {
+      teams[idx] = updatedTeam;
+      if (this.isBrowser()) {
+        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+        window.dispatchEvent(new Event('sih_teams_updated'));
+      }
+    }
+    // Re-sync full data from Supabase to guarantee complete field alignment
+    this.syncFromSupabase();
+  }
+
+
   static addPPTSubmission(teamId: string, submission: PPTSubmission): void {
     const teams = this.getTeams();
     const team = teams.find(t => t.team_id === teamId);

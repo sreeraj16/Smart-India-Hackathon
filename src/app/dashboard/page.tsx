@@ -6,17 +6,21 @@ import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team, ProblemStatement } from '@/lib/types';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { Users, FileCheck, Layers, Plus, User, Bot, ArrowRight, ShieldCheck, Cpu } from 'lucide-react';
+import { Users, FileCheck, Layers, Plus, User, Bot, ArrowRight, ShieldCheck, Cpu, Edit3 } from 'lucide-react';
+import { EditTeamModal } from '@/components/EditTeamModal';
 
 export default function TeamDashboardPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [allStatements, setAllStatements] = useState<ProblemStatement[]>([]);
   const [isAddPSModalOpen, setIsAddPSModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedSecondPS, setSelectedSecondPS] = useState<ProblemStatement | null>(null);
 
   useEffect(() => {
     const refreshData = () => {
       const user = HackathonStateManager.getCurrentUser();
+      setCurrentUser(user);
       const teamId = user?.team_id || 'SIH-2026-1001';
       setTeam(HackathonStateManager.getTeamById(teamId) || null);
       setAllStatements(HackathonStateManager.getProblemStatements());
@@ -31,6 +35,7 @@ export default function TeamDashboardPage() {
       window.removeEventListener('sih_auth_changed', refreshData);
     };
   }, []);
+
 
   const [customPsId, setCustomPsId] = useState('');
   const [customPsTitle, setCustomPsTitle] = useState('');
@@ -116,12 +121,22 @@ export default function TeamDashboardPage() {
           </p>
         </div>
 
-        <Link
-          href="/dashboard/ai-assistant"
-          className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow transition-all hover:scale-105 flex items-center gap-2"
-        >
-          <Bot className="w-4 h-4" /> Open AI Assistant
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow transition-all hover:scale-105 flex items-center gap-2 cursor-pointer"
+          >
+            <Edit3 className="w-4 h-4" /> Edit Registration
+          </button>
+
+          <Link
+            href="/dashboard/ai-assistant"
+            className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow transition-all hover:scale-105 flex items-center gap-2"
+          >
+            <Bot className="w-4 h-4" /> Open AI Assistant
+          </Link>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -372,6 +387,19 @@ export default function TeamDashboardPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Edit Registration Modal */}
+      {isEditModalOpen && team && (
+        <EditTeamModal
+          team={team}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          currentUserEmail={currentUser?.email || team.team_lead_email}
+          onSuccess={(updatedTeam) => {
+            setTeam(updatedTeam);
+          }}
+        />
       )}
 
     </div>
