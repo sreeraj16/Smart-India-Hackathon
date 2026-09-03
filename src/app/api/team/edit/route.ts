@@ -91,6 +91,7 @@ export async function POST(req: Request) {
 
     // Combine lead member + 5 additional members
     const leadMemberObj = {
+      member_id: existingLead?.member_id,
       name: (leadName || '').trim(),
       id_number: (leadIdNumber || '').trim(),
       email: (leadEmail || '').trim(),
@@ -177,16 +178,16 @@ export async function POST(req: Request) {
     }
 
     // Compare Members (1 lead + 5 members)
-    // Sort existing dbMembers so lead is first, then by roll_number/member_id
-    const sortedDbMembers = [...dbMembers].sort((a: any, b: any) => {
-      if (a.is_lead) return -1;
-      if (b.is_lead) return 1;
-      return (a.created_at || '').localeCompare(b.created_at || '');
-    });
-
     for (let i = 0; i < allSubmittedMembers.length; i++) {
       const submitted = allSubmittedMembers[i];
-      const existing = sortedDbMembers[i];
+      let existing: any = null;
+      if (submitted.member_id) {
+        existing = dbMembers.find((m: any) => m.member_id === submitted.member_id);
+      }
+      if (!existing && submitted.is_lead) {
+        existing = existingLead;
+      }
+
       const memberRoleLabel = submitted.is_lead ? 'Team Lead' : `Member #${i}`;
 
       if (existing) {
@@ -277,30 +278,38 @@ export async function POST(req: Request) {
       }
     }
 
-    // Step B: Update Team Members surgically by member_id
+    // Step B: Update Team Members surgically by member_id or is_lead
     for (let i = 0; i < allSubmittedMembers.length; i++) {
       const subMember = allSubmittedMembers[i];
-      const dbMember = sortedDbMembers[i];
+      let targetDbMember: any = null;
 
-      const memberPayload = {
+      if (subMember.member_id) {
+        targetDbMember = dbMembers.find((m: any) => m.member_id === subMember.member_id);
+      }
+      if (!targetDbMember && subMember.is_lead) {
+        targetDbMember = existingLead;
+      }
+
+      const memberPayload: any = {
         name: subMember.name,
         roll_number: subMember.id_number,
         email: subMember.email,
         phone: subMember.phone,
         department: subMember.department,
         year: subMember.year,
+        gender: subMember.gender || 'M',
         is_lead: subMember.is_lead
       };
 
-      if (dbMember?.member_id) {
+      if (targetDbMember?.member_id) {
         // Update existing member record by unique member_id
         const { error: updateMemberErr } = await supabase
           .from('team_members')
           .update(memberPayload)
-          .eq('member_id', dbMember.member_id);
+          .eq('member_id', targetDbMember.member_id);
 
         if (updateMemberErr) {
-          console.error(`Failed to update member ${dbMember.member_id}:`, updateMemberErr);
+          console.error(`Failed to update member ${targetDbMember.member_id}:`, updateMemberErr);
           return NextResponse.json(
             { success: false, error: `Database Update Error (Member ${subMember.name}): ${updateMemberErr.message}` },
             { status: 500 }
@@ -321,6 +330,22 @@ export async function POST(req: Request) {
             { success: false, error: `Database Insert Error (Member ${subMember.name}): ${insertMemberErr.message}` },
             { status: 500 }
           );
+        }
+      }
+    }
+
+    // Sync profiles table if Team Lead's name or email changed
+    if (registeredLeadEmail) {
+      const newLeadEmail = leadMemberObj.email;
+      const newLeadName = leadMemberObj.name;
+      if (newLeadEmail !== registeredLeadEmail || newLeadName !== existingLead?.name) {
+        const { error: profileUpdateErr } = await supabase
+          .from('profiles')
+          .update({ name: newLeadName, email: newLeadEmail })
+          .eq('email', registeredLeadEmail);
+        
+        if (profileUpdateErr) {
+          console.error('Failed to update profiles table for lead:', profileUpdateErr);
         }
       }
     }
@@ -471,9 +496,48 @@ export async function POST(req: Request) {
       }
     }
 
+    // Re-fetch updated team members from DB to construct exact response
+    const { data: finalDbMembers } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('team_id', teamId);
+
+    const sortedFinalMembers = (finalDbMembers || []).map((m: any) => ({
+      member_id: m.member_id,
+      team_id: m.team_id,
+      name: m.name,
+      id_number: m.roll_number,
+      email: m.email,
+      phone: m.phone,
+      department: m.department,
+      year: m.year,
+      is_lead: !!m.is_lead,
+      gender: m.gender || 'M'
+    })).sort((a: any, b: any) => {
+      if (a.is_lead && !b.is_lead) return -1;
+      if (!a.is_lead && b.is_lead) return 1;
+      return (a.member_id || '').localeCompare(b.member_id || '');
+    });
+
+    const finalLead = sortedFinalMembers.find((m: any) => m.is_lead);
+
+    const updatedTeamObj: any = {
+      ...dbTeam,
+      team_name: trimmedTeamName,
+      team_lead_name: finalLead?.name || leadName,
+      team_lead_email: finalLead?.email || leadEmail,
+      team_lead_phone: finalLead?.phone || leadPhone,
+      department: finalLead?.department || department,
+      year: finalLead?.year || year,
+      college: 'RGUKT Nuzvid',
+      members: sortedFinalMembers,
+      selected_problem_statements: selectedPS
+    };
+
     return NextResponse.json({
       success: true,
       teamId,
+      updatedTeam: updatedTeamObj,
       diffs,
       message: 'Team registration details updated successfully with surgical data preservation.'
     });

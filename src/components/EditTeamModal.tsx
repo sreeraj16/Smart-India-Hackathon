@@ -349,8 +349,9 @@ export function EditTeamModal({
         throw new Error(data.error || 'Server error updating team registration.');
       }
 
-      // Construct updated team object
+      // Construct updated team object using server returned data if available
       const leadMemberObj: TeamMember = {
+        member_id: leadMember.member_id,
         name: leadName.trim(),
         id_number: leadIdNumber.trim(),
         email: leadEmail.trim(),
@@ -361,7 +362,7 @@ export function EditTeamModal({
         is_lead: true
       };
 
-      const updatedTeamObj: Team = {
+      const fallbackTeamObj: Team = {
         ...team,
         team_name: teamName.trim(),
         team_lead_name: leadName.trim(),
@@ -373,11 +374,29 @@ export function EditTeamModal({
         selected_problem_statements: selectedPSList
       };
 
+      const finalUpdatedTeam: Team = data.updatedTeam || fallbackTeamObj;
+
+      // Update current user session if the logged-in team lead edited their name/email
+      const currUser = HackathonStateManager.getCurrentUser();
+      if (currUser && currUser.role === 'team_lead') {
+        const isCurrentLead =
+          currUser.email.toLowerCase() === team.team_lead_email.toLowerCase() ||
+          currUser.email.toLowerCase() === leadEmail.trim().toLowerCase();
+
+        if (isCurrentLead) {
+          HackathonStateManager.setCurrentUser({
+            ...currUser,
+            name: leadName.trim(),
+            email: leadEmail.trim()
+          });
+        }
+      }
+
       // Sync state manager
-      HackathonStateManager.editTeamRegistration(updatedTeamObj);
+      HackathonStateManager.editTeamRegistration(finalUpdatedTeam);
 
       if (onSuccess) {
-        onSuccess(updatedTeamObj);
+        onSuccess(finalUpdatedTeam);
       }
 
       setIsDiffModalOpen(false);

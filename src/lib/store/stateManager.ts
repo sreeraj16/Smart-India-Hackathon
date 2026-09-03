@@ -421,8 +421,13 @@ export class HackathonStateManager {
             department: m.department,
             year: m.year,
             is_lead: !!m.is_lead,
-            gender: m.gender
-          }));
+            gender: m.gender || 'M'
+          }))
+          .sort((a, b) => {
+            if (a.is_lead && !b.is_lead) return -1;
+            if (!a.is_lead && b.is_lead) return 1;
+            return (a.member_id || '').localeCompare(b.member_id || '');
+          });
 
         const leadMember = members.find(m => m.is_lead);
 
