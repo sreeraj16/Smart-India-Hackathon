@@ -5,13 +5,18 @@ import Link from 'next/link';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
-import { Search, Filter, Eye, Users, FileText, CheckCircle2, Layers } from 'lucide-react';
+import { Search, Filter, Eye, Users, FileText, CheckCircle2, Layers, Edit3, Trash2 } from 'lucide-react';
+import { AdminEditTeamModal } from '@/components/AdminEditTeamModal';
+import { AdminDeleteTeamModal } from '@/components/AdminDeleteTeamModal';
 
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [pptFilter, setPptFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [deletingTeam, setDeletingTeam] = useState<Team | null>(null);
 
   useEffect(() => {
     setTeams(HackathonStateManager.getTeams());
@@ -43,7 +48,7 @@ export default function AdminTeamsPage() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Registered Teams Directory</h1>
-          <p className="text-xs text-slate-500 mt-1">Manage team rosters, verify uploaded presentation files, and monitor live evaluation scores.</p>
+          <p className="text-xs text-slate-500 mt-1">Manage team rosters, edit registration details, remove teams safely, and monitor live evaluation scores.</p>
         </div>
         <div className="text-xs font-bold bg-amber-50 text-amber-800 px-3.5 py-1.5 rounded-xl border border-amber-200">
           Total Teams: {teams.length}
@@ -111,8 +116,8 @@ export default function AdminTeamsPage() {
                   <th className="py-3.5 px-4 text-center">Members</th>
                   <th className="py-3.5 px-4">Problem Statement</th>
                   <th className="py-3.5 px-4">Presentation Link</th>
-                  <th className="py-3.5 px-4 text-center">Jury Accumulated Score</th>
-                  <th className="py-3.5 px-4 text-right">Action</th>
+                  <th className="py-3.5 px-4 text-center">Jury Score</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -162,12 +167,31 @@ export default function AdminTeamsPage() {
                         })()}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/admin/teams/${team.team_id}`}
-                          className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold rounded-lg transition-colors inline-flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Details
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/admin/teams/${team.team_id}`}
+                            className="px-2.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold rounded-lg transition-colors inline-flex items-center gap-1 text-[11px]"
+                            title="View Full Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </Link>
+
+                          <button
+                            onClick={() => setEditingTeam(team)}
+                            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg border border-amber-200 transition-colors inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                            title="Edit Registration Details"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Edit
+                          </button>
+
+                          <button
+                            onClick={() => setDeletingTeam(team)}
+                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg border border-rose-200 transition-colors inline-flex items-center gap-1 text-[11px] cursor-pointer"
+                            title="Remove / Disqualify Team"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remove
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -176,6 +200,26 @@ export default function AdminTeamsPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Admin Edit Team Modal */}
+      {editingTeam && (
+        <AdminEditTeamModal
+          team={editingTeam}
+          isOpen={!!editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onSuccess={() => setEditingTeam(null)}
+        />
+      )}
+
+      {/* Admin Delete Team Modal */}
+      {deletingTeam && (
+        <AdminDeleteTeamModal
+          team={deletingTeam}
+          isOpen={!!deletingTeam}
+          onClose={() => setDeletingTeam(null)}
+          onSuccess={() => setDeletingTeam(null)}
+        />
       )}
 
     </div>

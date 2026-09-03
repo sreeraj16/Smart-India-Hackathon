@@ -147,6 +147,19 @@ export class HackathonStateManager {
     this.syncFromSupabase();
   }
 
+  static disqualifyTeam(teamId: string): void {
+    const teams = this.getTeams();
+    const target = teams.find(t => t.team_id === teamId);
+    if (target) {
+      target.registration_status = 'disqualified';
+      if (this.isBrowser()) {
+        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+        window.dispatchEvent(new Event('sih_teams_updated'));
+      }
+    }
+    this.syncFromSupabase();
+  }
+
 
   static addPPTSubmission(teamId: string, submission: PPTSubmission): void {
     const teams = this.getTeams();
