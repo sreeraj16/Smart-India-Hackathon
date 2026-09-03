@@ -289,7 +289,6 @@ export async function POST(req: Request) {
         phone: subMember.phone,
         department: subMember.department,
         year: subMember.year,
-        gender: subMember.gender,
         is_lead: subMember.is_lead
       };
 
