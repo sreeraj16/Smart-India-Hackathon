@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS team_members (
     phone VARCHAR(20) NOT NULL,
     department VARCHAR(100) NOT NULL,
     year VARCHAR(20) NOT NULL,
+    gender VARCHAR(10) DEFAULT 'M',
     is_lead BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

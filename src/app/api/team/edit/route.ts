@@ -303,10 +303,21 @@ export async function POST(req: Request) {
 
       if (targetDbMember?.member_id) {
         // Update existing member record by unique member_id
-        const { error: updateMemberErr } = await supabase
+        let { error: updateMemberErr } = await supabase
           .from('team_members')
           .update(memberPayload)
           .eq('member_id', targetDbMember.member_id);
+
+        if (updateMemberErr && updateMemberErr.message?.toLowerCase().includes('gender')) {
+          // Fallback gracefully if 'gender' column is missing in Supabase schema cache
+          const fallbackPayload = { ...memberPayload };
+          delete fallbackPayload.gender;
+          const retryRes = await supabase
+            .from('team_members')
+            .update(fallbackPayload)
+            .eq('member_id', targetDbMember.member_id);
+          updateMemberErr = retryRes.error;
+        }
 
         if (updateMemberErr) {
           console.error(`Failed to update member ${targetDbMember.member_id}:`, updateMemberErr);
@@ -317,12 +328,24 @@ export async function POST(req: Request) {
         }
       } else {
         // Insert new member record if not existing
-        const { error: insertMemberErr } = await supabase
+        let { error: insertMemberErr } = await supabase
           .from('team_members')
           .insert({
             team_id: teamId,
             ...memberPayload
           });
+
+        if (insertMemberErr && insertMemberErr.message?.toLowerCase().includes('gender')) {
+          const fallbackPayload = { ...memberPayload };
+          delete fallbackPayload.gender;
+          const retryRes = await supabase
+            .from('team_members')
+            .insert({
+              team_id: teamId,
+              ...fallbackPayload
+            });
+          insertMemberErr = retryRes.error;
+        }
 
         if (insertMemberErr) {
           console.error(`Failed to insert member ${subMember.name}:`, insertMemberErr);

@@ -134,12 +134,30 @@ export async function POST(req: Request) {
       phone: m.phone,
       department: m.department,
       year: m.year,
+      gender: m.gender || 'M',
       is_lead: !!m.is_lead
     }));
 
-    const { error: membersDbError } = await supabase
+    let { error: membersDbError } = await supabase
       .from('team_members')
       .insert(memberInserts);
+
+    if (membersDbError && membersDbError.message?.toLowerCase().includes('gender')) {
+      const fallbackMemberInserts = allMembers.map(m => ({
+        team_id: generatedTeamId,
+        name: m.name,
+        roll_number: m.id_number,
+        email: m.email,
+        phone: m.phone,
+        department: m.department,
+        year: m.year,
+        is_lead: !!m.is_lead
+      }));
+      const retryRes = await supabase
+        .from('team_members')
+        .insert(fallbackMemberInserts);
+      membersDbError = retryRes.error;
+    }
 
     if (membersDbError) {
       console.error('Members DB Error:', membersDbError);
