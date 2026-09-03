@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   AUDIT_LOGS: 'sih_2026_audit_logs',
   TOP50_OVERRIDES: 'sih_2026_top50_overrides',
   CURRENT_USER: 'sih_2026_current_user',
+  MEMBER_GENDERS: 'sih_2026_member_genders',
 };
 
 export class HackathonStateManager {
@@ -133,15 +134,45 @@ export class HackathonStateManager {
     }
   }
 
+  static getStoredGenders(): Record<string, string> {
+    if (!this.isBrowser()) return {};
+    const stored = localStorage.getItem(STORAGE_KEYS.MEMBER_GENDERS);
+    if (!stored) return {};
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return {};
+    }
+  }
+
+  static saveMemberGender(key: string, gender: string): void {
+    if (!this.isBrowser() || !key) return;
+    const map = this.getStoredGenders();
+    map[key.toLowerCase()] = gender;
+    localStorage.setItem(STORAGE_KEYS.MEMBER_GENDERS, JSON.stringify(map));
+  }
+
   static editTeamRegistration(updatedTeam: Team): void {
     const teams = this.getTeams();
     const idx = teams.findIndex(t => t.team_id === updatedTeam.team_id);
     if (idx !== -1) {
       teams[idx] = updatedTeam;
-      if (this.isBrowser()) {
-        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
-        window.dispatchEvent(new Event('sih_teams_updated'));
-      }
+    } else {
+      teams.push(updatedTeam);
+    }
+
+    if (updatedTeam.members && Array.isArray(updatedTeam.members)) {
+      updatedTeam.members.forEach(m => {
+        if (m.gender) {
+          if (m.member_id) this.saveMemberGender(m.member_id, m.gender);
+          if (m.email) this.saveMemberGender(m.email, m.gender);
+        }
+      });
+    }
+
+    if (this.isBrowser()) {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+      window.dispatchEvent(new Event('sih_teams_updated'));
     }
     // Re-sync full data from Supabase to guarantee complete field alignment
     this.syncFromSupabase();
@@ -420,22 +451,30 @@ export class HackathonStateManager {
       // 4. Fetch PPT Submissions
       const { data: dbPpts } = await supabase.from('ppt_submissions').select('*');
 
+      const storedGenders = this.getStoredGenders();
+
       // Construct frontend Team objects
       const teams: Team[] = (dbTeams || []).map(t => {
         const members = (dbMembers || [])
           .filter(m => m.team_id === t.team_id)
-          .map(m => ({
-            member_id: m.member_id,
-            team_id: m.team_id,
-            name: m.name,
-            id_number: m.roll_number,
-            email: m.email,
-            phone: m.phone,
-            department: m.department,
-            year: m.year,
-            is_lead: !!m.is_lead,
-            gender: m.gender || 'M'
-          }))
+          .map(m => {
+            const genderVal = m.gender ||
+              (m.member_id ? storedGenders[m.member_id.toLowerCase()] : null) ||
+              (m.email ? storedGenders[m.email.toLowerCase()] : null) ||
+              'M';
+            return {
+              member_id: m.member_id,
+              team_id: m.team_id,
+              name: m.name,
+              id_number: m.roll_number,
+              email: m.email,
+              phone: m.phone,
+              department: m.department,
+              year: m.year,
+              is_lead: !!m.is_lead,
+              gender: genderVal
+            };
+          })
           .sort((a, b) => {
             if (a.is_lead && !b.is_lead) return -1;
             if (!a.is_lead && b.is_lead) return 1;
