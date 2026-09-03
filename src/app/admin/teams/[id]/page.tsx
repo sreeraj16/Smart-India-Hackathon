@@ -6,10 +6,8 @@ import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team, JuryEvaluation } from '@/lib/types';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2, AlertCircle, ExternalLink, Edit3, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Download, Maximize2, Users, Layers, Award, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
-import { AdminEditTeamModal } from '@/components/AdminEditTeamModal';
-import { AdminDeleteTeamModal } from '@/components/AdminDeleteTeamModal';
 
 export default function AdminTeamDetailPage() {
   const params = useParams();
@@ -19,8 +17,6 @@ export default function AdminTeamDetailPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [evaluations, setEvaluations] = useState<JuryEvaluation[]>([]);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Scoring rubric modal state variables
   const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
@@ -42,12 +38,6 @@ export default function AdminTeamDetailPage() {
       const loadedTeam = HackathonStateManager.getTeamById(teamId);
       setTeam(loadedTeam || null);
 
-      const handleUpdate = () => {
-        const t = HackathonStateManager.getTeamById(teamId);
-        setTeam(t || null);
-      };
-      window.addEventListener('sih_teams_updated', handleUpdate);
-
       // Fetch evaluations
       const fetchEvals = async () => {
         try {
@@ -63,10 +53,6 @@ export default function AdminTeamDetailPage() {
         }
       };
       fetchEvals();
-
-      return () => {
-        window.removeEventListener('sih_teams_updated', handleUpdate);
-      };
     }
   }, [teamId]);
 
@@ -172,6 +158,7 @@ export default function AdminTeamDetailPage() {
         setEvaluations(data);
       }
 
+      // Trigger standard local state updates to re-calculate average scores in lists
       window.dispatchEvent(new Event('sih_teams_updated'));
 
       await HackathonStateManager.checkTeamEvaluationCompletion(teamId);
@@ -193,30 +180,13 @@ export default function AdminTeamDetailPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.push('/admin/teams')}
-          className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Teams Directory
         </button>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-200 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5" /> Edit Registration
-          </button>
-
-          <button
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Remove Team
-          </button>
-
-          <span className="text-xs font-extrabold text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1 rounded-full">
-            {team.team_id}
-          </span>
-        </div>
+        <span className="text-xs font-extrabold text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1 rounded-full">
+          {team.team_id}
+        </span>
       </div>
 
       {/* Team Info Card */}
@@ -274,9 +244,7 @@ export default function AdminTeamDetailPage() {
                   <div className="font-bold text-slate-900 flex items-center gap-1.5">
                     {m.name} {m.is_lead && <span className="text-[9px] bg-brand-600 text-white font-bold px-1.5 py-0.2 rounded">LEAD</span>}
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    ID: {m.id_number} • {m.department} • <strong className="text-slate-700">Gender: {m.gender || 'M'}</strong>
-                  </div>
+                  <div className="text-[11px] text-slate-500">ID: {m.id_number} • {m.department}</div>
                 </div>
                 <div className="text-[11px] text-slate-400 font-mono">{m.phone}</div>
               </div>
@@ -610,29 +578,6 @@ export default function AdminTeamDetailPage() {
           </Modal>
         );
       })()}
-
-      {/* Admin Edit Team Modal */}
-      {isEditModalOpen && team && (
-        <AdminEditTeamModal
-          team={team}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onSuccess={() => setIsEditModalOpen(false)}
-        />
-      )}
-
-      {/* Admin Delete Team Modal */}
-      {isDeleteModalOpen && team && (
-        <AdminDeleteTeamModal
-          team={team}
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onSuccess={() => {
-            setIsDeleteModalOpen(false);
-            router.push('/admin/teams');
-          }}
-        />
-      )}
 
     </div>
   );
