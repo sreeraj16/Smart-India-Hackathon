@@ -40,6 +40,12 @@ export default function LoginPage() {
         created_at: new Date().toISOString()
       };
 
+      await fetch('/api/auth/verify-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userObj)
+      });
+
       HackathonStateManager.setCurrentUser(userObj);
       router.push('/jury/dashboard');
     } else if (activeRole === 'coordinator') {
@@ -66,6 +72,12 @@ export default function LoginPage() {
           created_at: new Date().toISOString()
         };
 
+        await fetch('/api/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userObj)
+        });
+
         HackathonStateManager.setCurrentUser(userObj);
         router.push('/coordinator/dashboard');
       } else {
@@ -86,6 +98,12 @@ export default function LoginPage() {
         const data = await response.json();
 
         if (data.success && data.user) {
+          await fetch('/api/auth/verify-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.user)
+          });
+
           HackathonStateManager.setCurrentUser(data.user);
           router.push('/admin/dashboard');
         } else {

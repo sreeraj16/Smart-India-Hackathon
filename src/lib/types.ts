@@ -1,4 +1,4 @@
-export type UserRole = 'team_lead' | 'jury' | 'coordinator' | 'admin';
+export type UserRole = 'team_lead' | 'team_member' | 'jury' | 'coordinator' | 'admin' | 'unregistered';
 
 export interface UserProfile {
   user_id: string;

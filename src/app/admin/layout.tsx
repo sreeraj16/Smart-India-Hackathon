@@ -7,23 +7,60 @@ import { HackathonStateManager } from '@/lib/store/stateManager';
 import { UserProfile } from '@/lib/types';
 import { Shield, LayoutDashboard, Users, Clock, Trophy, FileSpreadsheet, LogOut, Sliders } from 'lucide-react';
 
+import { ROLE_PORTALS } from '@/lib/config';
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    const adminEmails = ['n220615@rguktn.ac.in', 'vasuch9959@rguktn.ac.in'];
-    if (!user || user.role !== 'admin' || !adminEmails.includes((user.email || '').toLowerCase())) {
-      HackathonStateManager.setCurrentUser(null);
-      router.push('/login');
-    } else {
-      setCurrentUser(user);
-      // Sync from Supabase on mount
-      HackathonStateManager.syncFromSupabase();
-    }
-  }, []);
+    const verifyAdminAccess = async () => {
+      const user = HackathonStateManager.getCurrentUser();
+      
+      try {
+        const res = await fetch('/api/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user || {})
+        });
+        const data = await res.json();
+
+        if (!data.authenticated || !data.user) {
+          HackathonStateManager.setCurrentUser(null);
+          router.replace('/login');
+          return;
+        }
+
+        const verifiedUser: UserProfile = {
+          user_id: data.user.user_id || 'admin-1',
+          name: data.user.name || 'Admin',
+          email: data.user.email,
+          role: data.user.role,
+          created_at: new Date().toISOString()
+        };
+
+        HackathonStateManager.setCurrentUser(verifiedUser);
+
+        // Strict role check: MUST be admin
+        if (verifiedUser.role !== 'admin') {
+          const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
+          router.replace(targetPortal);
+          return;
+        }
+
+        setCurrentUser(verifiedUser);
+        HackathonStateManager.syncFromSupabase();
+      } catch (err) {
+        console.error('Error verifying admin session:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyAdminAccess();
+  }, [router]);
 
   const handleLogout = () => {
     HackathonStateManager.setCurrentUser(null);
@@ -38,6 +75,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/results', label: 'Results & Top 50', icon: Trophy },
     { href: '/admin/audit-logs', label: 'Audit Logs', icon: FileSpreadsheet },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-300">Verifying Admin Access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">

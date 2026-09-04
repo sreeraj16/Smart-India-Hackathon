@@ -47,28 +47,30 @@ export default function LandingPage() {
           .then(res => res.json())
           .then(async data => {
             if (data.success && data.user) {
-              // Ensure local storage is fully synced with Supabase before matching team
-              await HackathonStateManager.syncFromSupabase();
+              const userEmail = (data.user.email || '').trim().toLowerCase();
+
+              // Verify user role server-side against Supabase DB
+              const verifyRes = await fetch('/api/auth/verify-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: userEmail,
+                  name: data.user.name,
+                  role: role
+                })
+              });
+              const verifyData = await verifyRes.json();
+
+              const verifiedRole = verifyData.user?.role || (role as UserRole) || 'team_lead';
 
               const googleUser: UserProfile = {
                 user_id: `google-${data.user.id || Date.now()}`,
                 name: data.user.name || 'Google Authenticated User',
                 email: data.user.email || 'user@rgukt.ac.in',
-                role: (role as UserRole) || 'team_lead',
+                role: verifiedRole as UserRole,
+                team_id: verifyData.user?.team_id,
                 created_at: new Date().toISOString()
               };
-
-              const userEmail = (data.user.email || '').toLowerCase();
-
-              // Admin Google OAuth access restriction
-              if (role === 'admin') {
-                const adminEmails = ['n220615@rguktn.ac.in', 'vasuch9959@rguktn.ac.in'];
-                if (!adminEmails.includes(userEmail)) {
-                  setOauthStatus('Google Auth Notice: Unauthorized Admin Account.');
-                  setOauthLoading(false);
-                  return;
-                }
-              }
 
               const matchedTeam = await HackathonStateManager.getTeamForUserAsync(googleUser);
 
@@ -82,15 +84,18 @@ export default function LandingPage() {
               setOauthStatus(`Signed in as ${data.user.name} (${data.user.email})! Redirecting...`);
 
               setTimeout(() => {
-                if (role === 'jury') {
-                  router.push('/jury/dashboard');
-                } else if (role === 'admin') {
+                if (verifiedRole === 'admin') {
                   router.push('/admin/dashboard');
-                } else if (matchedTeam) {
+                } else if (verifiedRole === 'coordinator') {
+                  router.push('/coordinator/dashboard');
+                } else if (verifiedRole === 'jury') {
+                  router.push('/jury/dashboard');
+                } else if (verifiedRole === 'team_member') {
+                  router.push('/team-member');
+                } else if (verifiedRole === 'team_lead' || matchedTeam) {
                   router.push('/dashboard');
                 } else {
-                  // Direct unregistered Google users to Team & Members Registration page!
-                  router.push('/register?google=true');
+                  router.push('/register');
                 }
               }, 800);
             } else {
@@ -142,29 +147,42 @@ export default function LandingPage() {
           </p>
 
           {/* Hackathon Dates Banner */}
-          <div className="max-w-xl mx-auto mb-10 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm text-center">
+          <div className="max-w-xl mx-auto mb-6 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm text-center">
             <div className="text-sm sm:text-base font-semibold text-slate-700 flex items-center justify-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse"></span>
               Dates of Internal Hackathon: <span className="text-brand-600 font-black">7th & 8th September, 2026</span>
             </div>
           </div>
 
+          {/* Registration Closed Notice Banner */}
+          <div className="max-w-2xl mx-auto mb-8 p-4 bg-rose-50 border border-rose-200 rounded-2xl shadow-sm text-center">
+            <div className="text-sm sm:text-base font-extrabold text-rose-800 flex items-center justify-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse"></span>
+              Team Registration Closed
+            </div>
+            <p className="text-xs text-rose-700 mt-1 font-semibold">
+              The registration deadline has ended. No new team registrations are being accepted at this time.
+            </p>
+          </div>
+
+
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Link
-              href="/guidelines"
-              className="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-bold text-base px-8 py-4 rounded-xl shadow-lg shadow-brand-700/25 hover:shadow-brand-800/40 transition-all hover:scale-105 flex items-center justify-center gap-2"
+              href="/register"
+              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold text-base px-8 py-4 rounded-xl shadow-lg transition-all hover:scale-105 flex items-center justify-center gap-2"
             >
-              <Rocket className="w-5 h-5" />
-              Register Now
+              <Rocket className="w-5 h-5 text-rose-400" />
+              Registration Status
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-800 font-semibold text-base px-8 py-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-semibold text-base px-8 py-4 rounded-xl shadow-lg shadow-brand-700/25 transition-all hover:scale-105 flex items-center justify-center gap-2"
             >
               Login to Portal
             </Link>
           </div>
+
 
           {/* Live Stats Ticker */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">

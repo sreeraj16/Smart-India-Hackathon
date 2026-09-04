@@ -143,10 +143,10 @@ export default function Navbar() {
                   Login
                 </Link>
                 <Link
-                  href="/guidelines"
-                  className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all hover:shadow hover:scale-[1.02] hidden sm:block"
+                  href="/register"
+                  className="text-xs font-semibold bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-2 rounded-xl shadow-sm transition-all hover:bg-rose-100 hidden sm:block"
                 >
-                  Register Team
+                  Registration Closed
                 </Link>
               </div>
             )}

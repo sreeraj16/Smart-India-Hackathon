@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { UserProfile, Team } from '@/lib/types';
-import { LayoutDashboard, Users, Layers, Bot, FileCheck, User, LogOut, ShieldAlert } from 'lucide-react';
-
 import { ROLE_PORTALS } from '@/lib/config';
+import { Users, LogOut, ShieldAlert, FileText, CheckCircle2 } from 'lucide-react';
 
-export default function TeamDashboardLayout({ children }: { children: React.ReactNode }) {
+export default function TeamMemberLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -17,15 +16,17 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleAuthOrTeamUpdate = async () => {
-      const user = HackathonStateManager.getCurrentUser();
-      
+    const verifyAuth = async () => {
       try {
+        const localUser = HackathonStateManager.getCurrentUser();
+        
+        // Always verify against backend database authority
         const res = await fetch('/api/auth/verify-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(user || {})
+          body: JSON.stringify(localUser || {})
         });
+
         const data = await res.json();
 
         if (!data.authenticated || !data.user) {
@@ -35,18 +36,19 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
         }
 
         const verifiedUser: UserProfile = {
-          user_id: data.user.user_id || user?.user_id || `user-${Date.now()}`,
-          name: data.user.name || user?.name || 'Team Lead',
+          user_id: data.user.user_id || `user-${Date.now()}`,
+          name: data.user.name || 'Team Member',
           email: data.user.email,
           role: data.user.role,
-          team_id: data.user.team_id || user?.team_id,
+          team_id: data.user.team_id,
           created_at: new Date().toISOString()
         };
 
+        // Sync local storage with DB authority
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be team_lead
-        if (verifiedUser.role !== 'team_lead') {
+        // Strict role validation: Team Members ONLY -> /team-member
+        if (verifiedUser.role !== 'team_member') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);
           return;
@@ -59,46 +61,26 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
         }
         setTeam(resolvedTeam || null);
       } catch (err) {
-        console.error('Error verifying team lead session:', err);
+        console.error('Team Member layout authorization error:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    handleAuthOrTeamUpdate();
-
-    // Initial mount sync from Supabase
-    HackathonStateManager.syncFromSupabase().then(() => {
-      handleAuthOrTeamUpdate();
-    });
-
-    window.addEventListener('sih_teams_updated', handleAuthOrTeamUpdate);
-    window.addEventListener('sih_auth_changed', handleAuthOrTeamUpdate);
-
-    return () => {
-      window.removeEventListener('sih_teams_updated', handleAuthOrTeamUpdate);
-      window.removeEventListener('sih_auth_changed', handleAuthOrTeamUpdate);
-    };
-
-  }, []);
+    verifyAuth();
+  }, [router]);
 
   const handleLogout = () => {
     HackathonStateManager.setCurrentUser(null);
     router.push('/login');
   };
 
-  const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/dashboard/ai-assistant', label: 'AI Assistant', icon: Bot, highlight: true },
-    { href: '/dashboard/presentation', label: 'PPT / Presentation', icon: FileCheck },
-  ];
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-600">Verifying Team Lead Access...</p>
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-600">Verifying Team Member Portal Access...</p>
         </div>
       </div>
     );
@@ -113,39 +95,34 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
           
           {/* Team ID Card */}
           <div className="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 mb-6">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Team ID</div>
-            <div className="text-[11px] font-bold text-white mt-0.5 tracking-tight break-all" title={team ? team.team_id : 'Pending'}>
-              {team ? team.team_id : '—'}
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-teal-400">Team Member View</div>
+            <div className="text-[11px] font-bold text-white mt-0.5 tracking-tight break-all">
+              {team ? team.team_id : 'SIH-2026'}
             </div>
             <div className="text-xs text-slate-400 mt-1 font-medium truncate">
               {team ? team.team_name : 'Registered Team'}
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation Link */}
           <nav className="space-y-1.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-brand-600 text-white shadow-md'
-                      : item.highlight
-                      ? 'bg-rose-950/80 text-rose-200 hover:bg-rose-900 border border-rose-800/40'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                  {item.highlight && <span className="ml-auto text-[9px] bg-brand-500 text-white px-1.5 py-0.5 rounded font-bold">AI</span>}
-                </Link>
-              );
-            })}
+            <Link
+              href="/team-member"
+              className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-md"
+            >
+              <Users className="w-4 h-4" />
+              Team Roster & Details
+            </Link>
           </nav>
+
+          <div className="mt-8 p-3.5 bg-amber-950/40 border border-amber-800/40 rounded-xl text-[11px] text-amber-200 space-y-1">
+            <div className="font-bold flex items-center gap-1">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" /> Read-Only Mode
+            </div>
+            <p className="text-[10px] text-amber-300/80 leading-relaxed">
+              As a Team Member, you have read-only access to team details. Presentation uploads and editing are restricted to the designated Team Lead.
+            </p>
+          </div>
         </div>
 
         {/* User profile & logout */}

@@ -18,27 +18,64 @@ interface CoordinatorLayoutProps {
   children: React.ReactNode;
 }
 
+import { ROLE_PORTALS } from '@/lib/config';
+
 export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    if (!user || user.role !== 'coordinator') {
-      HackathonStateManager.setCurrentUser(null);
-      router.push('/login');
-    } else {
-      setCurrentUser(user);
-      // Sync from Supabase on mount
-      HackathonStateManager.syncFromSupabase();
-    }
-  }, []);
+    const verifyCoordinatorAccess = async () => {
+      const user = HackathonStateManager.getCurrentUser();
+      
+      try {
+        const res = await fetch('/api/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user || {})
+        });
+        const data = await res.json();
+
+        if (!data.authenticated || !data.user) {
+          HackathonStateManager.setCurrentUser(null);
+          router.replace('/login');
+          return;
+        }
+
+        const verifiedUser: UserProfile = {
+          user_id: data.user.user_id || user?.user_id || 'coordinator-1',
+          name: data.user.name || user?.name || 'Coordinator',
+          email: data.user.email,
+          role: data.user.role,
+          panel: data.user.panel || user?.panel,
+          created_at: new Date().toISOString()
+        };
+
+        HackathonStateManager.setCurrentUser(verifiedUser);
+
+        // Strict role check: MUST be coordinator
+        if (verifiedUser.role !== 'coordinator') {
+          const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
+          router.replace(targetPortal);
+          return;
+        }
+
+        setCurrentUser(verifiedUser);
+        HackathonStateManager.syncFromSupabase();
+      } catch (err) {
+        console.error('Error verifying coordinator session:', err);
+      }
+    };
+
+    verifyCoordinatorAccess();
+  }, [router]);
 
   const handleLogout = () => {
     HackathonStateManager.setCurrentUser(null);
     router.push('/login');
   };
+
 
   if (!currentUser) {
     return (

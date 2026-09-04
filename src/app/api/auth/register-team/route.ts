@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server';
+import { REGISTRATION_CLOSED, REGISTRATION_CLOSED_MESSAGE } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  if (REGISTRATION_CLOSED) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `${REGISTRATION_CLOSED_MESSAGE.title}: ${REGISTRATION_CLOSED_MESSAGE.subtitle}`
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { teamName, leadEmail } = body;

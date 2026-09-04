@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { ProblemStatement, TeamMember } from '@/lib/types';
+import { REGISTRATION_CLOSED, REGISTRATION_CLOSED_MESSAGE } from '@/lib/config';
 import { Modal } from '@/components/ui/Modal';
-import { CheckCircle2, User, Plus, Trash2, Layers, Search, ShieldCheck, ArrowRight, ArrowLeft, Mail, AlertCircle } from 'lucide-react';
+import { CheckCircle2, User, Plus, Trash2, Layers, Search, ShieldCheck, ArrowRight, ArrowLeft, Mail, AlertCircle, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -259,6 +261,47 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Team Registration</h1>
           <p className="text-xs text-slate-500 mt-1">SIH Internal Hackathon 2026 — RGUKT Nuzvid</p>
         </div>
+
+        {REGISTRATION_CLOSED ? (
+          <div className="bg-white rounded-3xl p-8 sm:p-12 shadow-sm border border-slate-200 text-center space-y-6 max-w-2xl mx-auto">
+            <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+            
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {REGISTRATION_CLOSED_MESSAGE.title}
+              </h2>
+              <p className="text-sm text-slate-600 mt-2 font-medium leading-relaxed">
+                {REGISTRATION_CLOSED_MESSAGE.subtitle}
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-500 space-y-1 text-left">
+              <p className="font-bold text-slate-700">Notice for Existing Teams:</p>
+              <p>Registration closure does NOT affect existing registered teams. Team Leads can still log in to access their Team Lead Dashboard, view team information, and manage presentation slide deck submissions.</p>
+            </div>
+
+            <div className="pt-4 flex flex-col sm:flex-row justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.push('/login')}
+                className="px-8 py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Login to Team Portal <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/guidelines')}
+                className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                View Guidelines & Rules
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+
 
         {/* Step Progress Bar */}
         <div className="mb-8 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -880,8 +923,11 @@ export default function RegisterPage() {
             </div>
           </Modal>
         )}
+        </>
+        )}
 
       </div>
     </div>
   );
 }
+

@@ -7,27 +7,79 @@ import { HackathonStateManager } from '@/lib/store/stateManager';
 import { UserProfile } from '@/lib/types';
 import { Award, LayoutDashboard, LogOut } from 'lucide-react';
 
+import { ROLE_PORTALS } from '@/lib/config';
+
 export default function JuryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    if (!user || user.role !== 'jury') {
-      HackathonStateManager.setCurrentUser(null);
-      router.push('/login');
-    } else {
-      setCurrentUser(user);
-      // Sync from Supabase on mount
-      HackathonStateManager.syncFromSupabase();
-    }
-  }, []);
+    const verifyJuryAccess = async () => {
+      const user = HackathonStateManager.getCurrentUser();
+      
+      try {
+        const res = await fetch('/api/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user || {})
+        });
+        const data = await res.json();
+
+        if (!data.authenticated || !data.user) {
+          HackathonStateManager.setCurrentUser(null);
+          router.replace('/login');
+          return;
+        }
+
+        const verifiedUser: UserProfile = {
+          user_id: data.user.user_id || user?.user_id || `jury-${Date.now()}`,
+          name: data.user.name || user?.name || 'Jury Panelist',
+          email: data.user.email,
+          role: data.user.role,
+          jury_id: data.user.jury_id || user?.jury_id,
+          panel: data.user.panel || user?.panel,
+          created_at: new Date().toISOString()
+        };
+
+        HackathonStateManager.setCurrentUser(verifiedUser);
+
+        // Strict role check: MUST be jury
+        if (verifiedUser.role !== 'jury') {
+          const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
+          router.replace(targetPortal);
+          return;
+        }
+
+        setCurrentUser(verifiedUser);
+        HackathonStateManager.syncFromSupabase();
+      } catch (err) {
+        console.error('Error verifying jury session:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyJuryAccess();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-300">Verifying Jury Access...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleLogout = () => {
     HackathonStateManager.setCurrentUser(null);
     router.push('/login');
   };
+
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">

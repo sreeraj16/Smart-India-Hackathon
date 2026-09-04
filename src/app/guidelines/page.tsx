@@ -162,12 +162,15 @@ export default function GuidelinesPage() {
               </label>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-brand-200/60 pt-4">
+              <div className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl">
+                Notice: Team Registration is permanently closed for new entries.
+              </div>
               <Link
                 href="/register"
-                className="px-8 py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-105 flex items-center gap-2 cursor-pointer"
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
-                Continue to Registration <ArrowRight className="w-4 h-4" />
+                View Registration Status <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>

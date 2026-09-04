@@ -366,7 +366,7 @@ export async function POST(req: Request) {
           .from('profiles')
           .update({ name: newLeadName, email: newLeadEmail })
           .eq('email', registeredLeadEmail);
-        
+
         if (profileUpdateErr) {
           console.error('Failed to update profiles table for lead:', profileUpdateErr);
         }
