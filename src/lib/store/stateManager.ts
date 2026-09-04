@@ -11,6 +11,21 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'sih_2026_current_user',
 };
 
+const CONFIRMED_DUPLICATE_IDS = new Set([
+  'SI_Hackers_RGUKTN_SIH26158_030',
+  'SI_Hackers_RGUKTN_SIH26158_031',
+  'Innovexia_RGUKTN_PS-100_063',
+  'INNOVEXIA_RGUKTN_SIH26100_108',
+  'Hexaminds_RGUKTN_SIH25038_040',
+  'Hexaminds_RGUKTN_SIH26009_152',
+  'BinaryNinjas_RGUKTN_SIH26003_105',
+  'BinaryNinjas_RGUKTN_SIH26003_155',
+  'Tejas_RGUKTN_SIH26120_134',
+  'NOVUS_RGUKTN_SIH26044_188',
+  'NOVUS_RGUKTN_SIH26044_197',
+  'Brainstormers_RGUKTN_SIH26039_182'
+]);
+
 export class HackathonStateManager {
   private static isBrowser(): boolean {
     return typeof window !== 'undefined';
@@ -36,11 +51,11 @@ export class HackathonStateManager {
 
   // --- TEAMS ---
   static getTeams(): Team[] {
-    if (!this.isBrowser()) return INITIAL_TEAMS;
+    if (!this.isBrowser()) return INITIAL_TEAMS.filter(t => !CONFIRMED_DUPLICATE_IDS.has(t.team_id));
     const stored = localStorage.getItem(STORAGE_KEYS.TEAMS);
     if (!stored) {
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(INITIAL_TEAMS));
-      return INITIAL_TEAMS;
+      return INITIAL_TEAMS.filter(t => !CONFIRMED_DUPLICATE_IDS.has(t.team_id));
     }
     try {
       const parsed = JSON.parse(stored);
@@ -49,9 +64,30 @@ export class HackathonStateManager {
         localStorage.removeItem(STORAGE_KEYS.TEAMS);
         return [];
       }
-      return parsed;
+      return (parsed || []).filter((t: Team) => !CONFIRMED_DUPLICATE_IDS.has(t.team_id));
     } catch {
-      return INITIAL_TEAMS;
+      return INITIAL_TEAMS.filter(t => !CONFIRMED_DUPLICATE_IDS.has(t.team_id));
+    }
+  }
+
+  static deleteTeam(teamId: string): void {
+    const teams = this.getTeams().filter(t => t.team_id !== teamId);
+    if (this.isBrowser()) {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+      window.dispatchEvent(new Event('sih_teams_updated'));
+
+      import('@/lib/supabase/client').then(({ supabase }) => {
+        supabase.from('team_members').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('team_problem_statements').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('ppt_submissions').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('jury_evaluations').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('presentation_sessions').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('audit_logs').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('final_results').delete().eq('team_id', teamId).then(() => {});
+        supabase.from('teams').delete().eq('team_id', teamId).then(({ error }) => {
+          if (error) console.error('Failed to delete team from Supabase:', error);
+        });
+      });
     }
   }
 
@@ -465,6 +501,8 @@ export class HackathonStateManager {
       const { data: dbTeams, error: teamsErr } = await supabase.from('teams').select('*');
       if (teamsErr) throw teamsErr;
 
+      const validDbTeams = (dbTeams || []).filter(t => !CONFIRMED_DUPLICATE_IDS.has(t.team_id));
+
       // 2. Fetch Members
       const { data: dbMembers } = await supabase.from('team_members').select('*');
 
@@ -477,7 +515,7 @@ export class HackathonStateManager {
       const { data: dbPpts } = await supabase.from('ppt_submissions').select('*');
 
       // Construct frontend Team objects
-      const teams: Team[] = (dbTeams || []).map(t => {
+      const teams: Team[] = validDbTeams.map(t => {
         const members = (dbMembers || [])
           .filter(m => m.team_id === t.team_id)
           .map(m => ({

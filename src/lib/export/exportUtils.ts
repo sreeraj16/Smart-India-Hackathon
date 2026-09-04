@@ -101,3 +101,64 @@ export function exportToPDF(data: FinalRankItem[], title = 'SIH Internal Hackath
 
   doc.save('SIH_2026_Official_Top50_Results.pdf');
 }
+
+export function exportAllTeamsToExcel(teams: Team[], filename = 'SIH_2026_Registered_Teams_Verified_Unique.xlsx') {
+  const exportRows = teams.map((t) => {
+    const lead = t.members.find(m => m.is_lead) || t.members[0];
+    const nonLeads = t.members.filter(m => !m.is_lead);
+    const ps1 = t.selected_problem_statements[0];
+    const ps2 = t.selected_problem_statements[1];
+
+    const row: Record<string, any> = {
+      'Team ID': t.team_id,
+      'Team Name': t.team_name,
+      'College': t.college || 'RGUKT Nuzvid',
+      'Department': t.department || (lead ? lead.department : 'CSE'),
+      'Academic Year': t.year || (lead ? lead.year : 'E3'),
+      'Registration Status': t.registration_status,
+      'Panel Assignment': t.panel || 'Panel 1',
+      'Google Slides Link': t.google_slides_url || 'Pending',
+      'Presentation Completed': t.presentation_completed ? 'YES' : 'NO',
+      'Completed By': t.completed_by || '-',
+      'Completed At': t.completed_at || '-',
+      'Registration Timestamp': t.created_at,
+
+      // Team Lead Info
+      'Team Lead Name': t.team_lead_name || (lead ? lead.name : '-'),
+      'Team Lead ID/Roll No': lead ? lead.id_number : '-',
+      'Team Lead Email': t.team_lead_email || (lead ? lead.email : '-'),
+      'Team Lead Phone': t.team_lead_phone || (lead ? lead.phone : '-'),
+      'Team Lead Gender': lead ? (lead.gender || 'M') : 'M',
+
+      // Problem Statements
+      'Total Selected PS': t.selected_problem_statements.length,
+      'Problem Statement 1 ID': ps1 ? ps1.problem_id : '-',
+      'Problem Statement 1 Title': ps1 ? ps1.problem_title : '-',
+      'Problem Statement 1 Category': ps1 ? ps1.category : '-',
+      'Problem Statement 2 ID': ps2 ? ps2.problem_id : '-',
+      'Problem Statement 2 Title': ps2 ? ps2.problem_title : '-',
+      'Problem Statement 2 Category': ps2 ? ps2.category : '-',
+
+      'Total Members Count': t.members.length
+    };
+
+    for (let i = 0; i < 5; i++) {
+      const m = nonLeads[i];
+      const prefix = `Member ${i + 2}`;
+      row[`${prefix} Name`] = m ? m.name : '-';
+      row[`${prefix} Roll No`] = m ? m.id_number : '-';
+      row[`${prefix} Email`] = m ? m.email : '-';
+      row[`${prefix} Phone`] = m ? m.phone : '-';
+      row[`${prefix} Department`] = m ? m.department : '-';
+      row[`${prefix} Year`] = m ? m.year : '-';
+    }
+
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Verified Unique Teams');
+  XLSX.writeFile(workbook, filename);
+}
+

@@ -78,7 +78,31 @@ DROP POLICY IF EXISTS "Allow public write of audit_logs" ON public.audit_logs;
 CREATE POLICY "Allow public read of audit_logs" ON public.audit_logs FOR SELECT TO public USING (true);
 CREATE POLICY "Allow public write of audit_logs" ON public.audit_logs FOR ALL TO public USING (true) WITH CHECK (true);
 
--- Also ensure profiles has public read/write/update access for OAuth/signup sync
+-- Also ensure teams, team_members, team_problem_statements, and profiles have public read/write/delete access
+ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of teams" ON public.teams;
+DROP POLICY IF EXISTS "Allow public insert of teams" ON public.teams;
+DROP POLICY IF EXISTS "Allow public update of teams" ON public.teams;
+DROP POLICY IF EXISTS "Allow public write of teams" ON public.teams;
+CREATE POLICY "Allow public read of teams" ON public.teams FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of teams" ON public.teams FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of team_members" ON public.team_members;
+DROP POLICY IF EXISTS "Allow public insert of team_members" ON public.team_members;
+DROP POLICY IF EXISTS "Allow public update of team_members" ON public.team_members;
+DROP POLICY IF EXISTS "Allow public write of team_members" ON public.team_members;
+CREATE POLICY "Allow public read of team_members" ON public.team_members FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of team_members" ON public.team_members FOR ALL TO public USING (true) WITH CHECK (true);
+
+ALTER TABLE public.team_problem_statements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read of team_problem_statements" ON public.team_problem_statements;
+DROP POLICY IF EXISTS "Allow public insert of team_problem_statements" ON public.team_problem_statements;
+DROP POLICY IF EXISTS "Allow public update of team_problem_statements" ON public.team_problem_statements;
+DROP POLICY IF EXISTS "Allow public write of team_problem_statements" ON public.team_problem_statements;
+CREATE POLICY "Allow public read of team_problem_statements" ON public.team_problem_statements FOR SELECT TO public USING (true);
+CREATE POLICY "Allow public write of team_problem_statements" ON public.team_problem_statements FOR ALL TO public USING (true) WITH CHECK (true);
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read of profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Allow public write of profiles" ON public.profiles;
