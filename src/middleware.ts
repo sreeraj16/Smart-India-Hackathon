@@ -27,31 +27,34 @@ export async function middleware(request: NextRequest) {
     }
 
     const role = session.authRole;
+    const isSuperMultiUser = session.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
 
-    // Reject unauthorized access attempts and redirect to authorized portal
-    if (isAdmin && role !== 'admin') {
-      const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+    // Reject unauthorized access attempts for normal users
+    if (!isSuperMultiUser) {
+      if (isAdmin && role !== 'admin') {
+        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
 
-    if (isCoordinator && role !== 'coordinator') {
-      const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+      if (isCoordinator && role !== 'coordinator') {
+        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
 
-    if (isJury && role !== 'jury') {
-      const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+      if (isJury && role !== 'jury') {
+        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
 
-    if (isDashboard && role !== 'team_lead') {
-      const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
+      if (isDashboard && role !== 'team_lead') {
+        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
 
-    if (isTeamMember && role !== 'team_member') {
-      const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-      return NextResponse.redirect(redirectUrl);
+      if (isTeamMember && role !== 'team_member') {
+        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
+        return NextResponse.redirect(redirectUrl);
+      }
     }
   }
 

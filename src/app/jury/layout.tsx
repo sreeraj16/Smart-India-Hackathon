@@ -8,6 +8,7 @@ import { UserProfile } from '@/lib/types';
 import { Award, LayoutDashboard, LogOut } from 'lucide-react';
 
 import { ROLE_PORTALS } from '@/lib/config';
+import { RoleSwitcher } from '@/components/RoleSwitcher';
 
 export default function JuryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -45,8 +46,9 @@ export default function JuryLayout({ children }: { children: React.ReactNode }) 
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be jury
-        if (verifiedUser.role !== 'jury') {
+        // Strict role check: MUST be jury (except for vasuch9959@rguktn.ac.in)
+        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        if (!isSuperMultiUser && verifiedUser.role !== 'jury') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);
           return;
@@ -82,7 +84,9 @@ export default function JuryLayout({ children }: { children: React.ReactNode }) 
 
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-100 flex flex-col">
+      <RoleSwitcher />
+      <div className="flex-1 flex flex-col md:flex-row">
       
       {/* Jury Sidebar */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col justify-between p-6">
@@ -128,6 +132,7 @@ export default function JuryLayout({ children }: { children: React.ReactNode }) 
         {children}
       </main>
 
+      </div>
     </div>
   );
 }

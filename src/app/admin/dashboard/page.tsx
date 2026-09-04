@@ -19,7 +19,8 @@ import {
   GraduationCap, 
   SlidersHorizontal,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -38,6 +39,8 @@ export default function AdminDashboardPage() {
   const [deptStats, setDeptStats] = useState<Record<string, number>>({});
   const [yearStats, setYearStats] = useState<Record<string, number>>({});
   const [panelStats, setPanelStats] = useState<Record<string, number>>({});
+  const [psDistribution, setPsDistribution] = useState<Array<{ problem_id: string; title: string; category: string; domain: string; teamCount: number }>>([]);
+  const [psSearchQuery, setPsSearchQuery] = useState('');
 
   const [isTwoPSModalOpen, setIsTwoPSModalOpen] = useState(false);
   const [deptFilter, setDeptFilter] = useState('All');
@@ -57,13 +60,32 @@ export default function AdminDashboardPage() {
     const participants = allTeams.reduce((acc, t) => acc + t.members.length, 0);
     const ppts = allTeams.filter(t => t.ppt_submission || t.google_slides_url).length;
 
-    // Distinct Problem Statements
+    // Distinct Problem Statements & PS Distribution mapping
     const psSet = new Set<string>();
+    const psCountMap = new Map<string, { problem_id: string; title: string; category: string; domain: string; teamCount: number }>();
+
     allTeams.forEach(t => {
       t.selected_problem_statements.forEach(ps => {
-        if (ps && ps.problem_id) psSet.add(ps.problem_id);
+        if (ps && ps.problem_id) {
+          psSet.add(ps.problem_id);
+          const existing = psCountMap.get(ps.problem_id);
+          if (existing) {
+            existing.teamCount += 1;
+          } else {
+            psCountMap.set(ps.problem_id, {
+              problem_id: ps.problem_id,
+              title: ps.problem_title || ps.description || 'Problem Statement',
+              category: ps.category || 'Software',
+              domain: ps.domain || 'General',
+              teamCount: 1
+            });
+          }
+        }
       });
     });
+
+    const psDistributionList = Array.from(psCountMap.values()).sort((a, b) => b.teamCount - a.teamCount);
+    setPsDistribution(psDistributionList);
 
     // Teams with 2 Problem Statements
     const twoPSTeams = allTeams.filter(t => t.selected_problem_statements.length >= 2).length;
@@ -104,7 +126,7 @@ export default function AdminDashboardPage() {
       if (dept.includes('COMPUTER') || dept.includes('CSE')) depts['CSE']++;
       else if (dept.includes('ELECTRONICS') || dept.includes('ECE')) depts['ECE']++;
       else if (dept.includes('ELECTRICAL') || dept.includes('EEE')) depts['EEE']++;
-      else if (dept.includes('CHEMICAL') || dept.includes('CHEM')) depts['CHEM'];
+      else if (dept.includes('CHEMICAL') || dept.includes('CHEM')) depts['CHEM']++;
       else if (dept.includes('METALLURGICAL') || dept.includes('MME')) depts['MME']++;
       else if (dept.includes('CIVIL')) depts['CIVIL']++;
       else if (dept.includes('MECHANICAL') || dept.includes('MECH')) depts['MECH']++;
@@ -309,6 +331,104 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Teams with Same Problem Statement Analytics Section */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-600" /> Teams with Same Problem Statement
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Breakdown of how many deduplicated teams have selected each problem statement (dual-PS teams counted under both statements).
+            </p>
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search Problem Statement..."
+              value={psSearchQuery}
+              onChange={(e) => setPsSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 bg-slate-100/90 backdrop-blur text-slate-700 font-bold uppercase tracking-wider">
+                <tr className="border-b border-slate-200">
+                  <th className="py-3 px-4">Problem ID</th>
+                  <th className="py-3 px-4">Problem Title & Domain</th>
+                  <th className="py-3 px-4 text-center">Category</th>
+                  <th className="py-3 px-4 text-center">Total Teams</th>
+                  <th className="py-3 px-4 text-right">Distribution Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800 font-semibold">
+                {psDistribution.filter(ps => {
+                  const q = psSearchQuery.toLowerCase();
+                  return ps.problem_id.toLowerCase().includes(q) || ps.title.toLowerCase().includes(q) || ps.domain.toLowerCase().includes(q);
+                }).length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                      No matching problem statements found.
+                    </td>
+                  </tr>
+                ) : (
+                  psDistribution
+                    .filter(ps => {
+                      const q = psSearchQuery.toLowerCase();
+                      return ps.problem_id.toLowerCase().includes(q) || ps.title.toLowerCase().includes(q) || ps.domain.toLowerCase().includes(q);
+                    })
+                    .map((ps) => {
+                      const isMultipleTeams = ps.teamCount > 1;
+                      return (
+                        <tr key={ps.problem_id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-4 font-extrabold text-brand-700 whitespace-nowrap">
+                            {ps.problem_id}
+                          </td>
+                          <td className="py-3 px-4 max-w-md">
+                            <div className="font-bold text-slate-900 line-clamp-1">{ps.title}</div>
+                            <div className="text-[10px] text-slate-400 font-medium">{ps.domain}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              ps.category === 'Software' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {ps.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center justify-center min-w-[28px] px-2 py-1 rounded-lg text-xs font-black ${
+                              isMultipleTeams ? 'bg-purple-100 text-purple-900 border border-purple-300' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {ps.teamCount} {ps.teamCount === 1 ? 'Team' : 'Teams'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            {isMultipleTeams ? (
+                              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                                ⚡ Multiple Teams ({ps.teamCount})
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                                Single Team
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Quick Action Navigation Cards */}

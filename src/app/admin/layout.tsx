@@ -8,6 +8,7 @@ import { UserProfile } from '@/lib/types';
 import { Shield, LayoutDashboard, Users, Clock, Trophy, FileSpreadsheet, LogOut, Sliders } from 'lucide-react';
 
 import { ROLE_PORTALS } from '@/lib/config';
+import { RoleSwitcher } from '@/components/RoleSwitcher';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -43,8 +44,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be admin
-        if (verifiedUser.role !== 'admin') {
+        // Strict role check: MUST be admin (except for vasuch9959@rguktn.ac.in)
+        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        if (!isSuperMultiUser && verifiedUser.role !== 'admin') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);
           return;
@@ -88,7 +90,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-100 flex flex-col">
+      <RoleSwitcher />
+      <div className="flex-1 flex flex-col md:flex-row">
       
       {/* Admin Sidebar */}
       <aside className="w-full md:w-64 bg-slate-950 text-white flex-shrink-0 flex flex-col justify-between p-6">
@@ -145,6 +149,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
 
+      </div>
     </div>
   );
 }

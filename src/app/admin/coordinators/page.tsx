@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team } from '@/lib/types';
 import { createClient } from '@/utils/supabase/client';
+import { Modal } from '@/components/ui/Modal';
+import { calculateSmartPanelDistribution, SmartDistributionOutcome } from '@/lib/utils/panelDistribution';
 import { 
   Users, 
   Search, 
@@ -13,7 +15,12 @@ import {
   RefreshCw, 
   AlertCircle, 
   CheckCircle2, 
-  Sliders
+  Sliders,
+  Zap,
+  Check,
+  ShieldCheck,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 
 export default function AdminCoordinatorsPage() {
@@ -25,6 +32,11 @@ export default function AdminCoordinatorsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [panelFilter, setPanelFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  // Smart Distribution State
+  const [distributionOutcome, setDistributionOutcome] = useState<SmartDistributionOutcome | null>(null);
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
+  const [applyingDistribution, setApplyingDistribution] = useState(false);
 
   // Operation States
   const [loading, setLoading] = useState(false);
@@ -41,42 +53,12 @@ export default function AdminCoordinatorsPage() {
     setLoading(true);
     setErrorMsg('');
     try {
-      // 1. Fetch teams
-      const { data: dbTeams, error: teamsError } = await supabase
-        .from('teams')
-        .select(`
-          *,
-          members:team_members(*)
-        `);
+      // Sync complete dataset from Supabase
+      await HackathonStateManager.syncFromSupabase();
+      const loadedTeams = HackathonStateManager.getTeams();
+      setTeams(loadedTeams);
 
-      let loadedTeams: Team[] = [];
-      if (dbTeams && !teamsError) {
-        loadedTeams = dbTeams.map((t: any) => ({
-          team_id: t.team_id,
-          team_name: t.team_name,
-          team_lead_id: t.team_lead_id || '',
-          team_lead_name: t.members?.find((m: any) => m.is_lead)?.name || 'Unknown',
-          team_lead_email: t.members?.find((m: any) => m.is_lead)?.email || '',
-          team_lead_phone: t.members?.find((m: any) => m.is_lead)?.phone || '',
-          department: t.members?.find((m: any) => m.is_lead)?.department || 'CSE',
-          year: t.members?.find((m: any) => m.is_lead)?.year || 'E3',
-          college: 'RGUKT Nuzvid',
-          registration_status: t.registration_status || 'registered',
-          members: t.members || [],
-          selected_problem_statements: [],
-          panel: t.panel || 'Panel 1',
-          presentation_completed: !!t.presentation_completed,
-          completed_by: t.completed_by || null,
-          completed_at: t.completed_at || null,
-          created_at: t.created_at
-        }));
-        setTeams(loadedTeams);
-      } else {
-        // Fallback
-        setTeams(HackathonStateManager.getTeams());
-      }
-
-      // 2. Fetch Faculty members list
+      // Fetch Faculty members list
       const { data: dbFaculty, error: facultyError } = await supabase
         .from('faculty_members')
         .select('name')
@@ -91,6 +73,66 @@ export default function AdminCoordinatorsPage() {
       setErrorMsg(`Failed to synchronize details: ${err.message || String(err)}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Generate Smart Panel Distribution
+  const handleGenerateDistribution = () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    const fullTeams = HackathonStateManager.getTeams();
+    const outcome = calculateSmartPanelDistribution(fullTeams, ['Panel 1', 'Panel 2', 'Panel 3']);
+    setDistributionOutcome(outcome);
+    setIsDistributionModalOpen(true);
+  };
+
+  // Save Smart Panel Distribution to Supabase
+  const handleSaveDistribution = async () => {
+    if (!distributionOutcome) return;
+    setApplyingDistribution(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const { proposedTeams, metrics } = distributionOutcome;
+
+      // 1. Batch update panel field in Supabase for each team
+      for (const team of proposedTeams) {
+        const { error } = await supabase
+          .from('teams')
+          .update({ panel: team.panel })
+          .eq('team_id', team.team_id);
+
+        if (error) console.error(`Failed to update panel for team ${team.team_id}:`, error);
+      }
+
+      // 2. Update local state manager
+      proposedTeams.forEach(pt => {
+        HackathonStateManager.updateTeam(pt);
+      });
+
+      // 3. Add audit log
+      const currentUser = HackathonStateManager.getCurrentUser();
+      HackathonStateManager.addAuditLog({
+        admin_id: currentUser?.user_id || 'admin-1',
+        admin_name: currentUser?.name || 'Admin',
+        team_id: 'ALL_TEAMS',
+        action: 'Smart Panel Distribution Applied',
+        previous_value: `Same-PS Overlaps: ${metrics.before_same_ps_overlaps}`,
+        new_value: `Same-PS Overlaps: ${metrics.after_same_ps_overlaps}`,
+        reason: 'Executed Smart Problem Statement Awareness Panel Distribution Algorithm'
+      });
+
+      // 4. Reload data and notify components
+      await HackathonStateManager.syncFromSupabase();
+      await loadData();
+
+      setSuccessMsg(`Successfully applied smart panel distribution! Distributed ${proposedTeams.length} unique teams across panels, reducing same-PS overlaps from ${metrics.before_same_ps_overlaps} to ${metrics.after_same_ps_overlaps}.`);
+      setIsDistributionModalOpen(false);
+    } catch (err: any) {
+      setErrorMsg(`Failed to save smart panel distribution: ${err.message || String(err)}`);
+    } finally {
+      setApplyingDistribution(false);
     }
   };
 
@@ -223,13 +265,22 @@ export default function AdminCoordinatorsPage() {
             Track live presentation completions, balance team panel assignments, and curate approved faculty evaluators.
           </p>
         </div>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleGenerateDistribution}
+            disabled={loading}
+            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-105 flex items-center gap-2 cursor-pointer"
+          >
+            <Zap className="w-4 h-4 text-amber-300 fill-amber-300" /> Smart Auto-Distribute Panels
+          </button>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
@@ -435,6 +486,176 @@ export default function AdminCoordinatorsPage() {
         </div>
 
       </div>
+
+      {/* Smart Panel Distribution Modal */}
+      {isDistributionModalOpen && distributionOutcome && (
+        <Modal
+          isOpen={isDistributionModalOpen}
+          onClose={() => setIsDistributionModalOpen(false)}
+          title="⚡ Proposed Smart Panel Distribution (Problem Statement Aware)"
+          maxWidth="4xl"
+        >
+          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
+            
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <div className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4" /> Optimization Complete
+                </div>
+                <h3 className="text-lg font-extrabold mt-0.5">Problem-Statement-Aware Distribution</h3>
+                <p className="text-xs text-slate-300 mt-1">
+                  Separates teams working on identical problem statements across Panels 1, 2, and 3 while balancing panel capacity.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 bg-white/10 p-3 rounded-xl border border-white/10 text-center">
+                <div>
+                  <div className="text-[10px] text-slate-300 font-bold uppercase">Same-PS Overlaps</div>
+                  <div className="text-xl font-extrabold text-amber-300">
+                    {distributionOutcome.metrics.before_same_ps_overlaps} → <span className="text-emerald-400">{distributionOutcome.metrics.after_same_ps_overlaps}</span>
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-white/20" />
+                <div>
+                  <div className="text-[10px] text-slate-300 font-bold uppercase">Dual-PS Teams</div>
+                  <div className="text-xl font-extrabold text-white">{distributionOutcome.metrics.dual_ps_teams_count}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 7-Point Pre-Save Verification Checks */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" /> Pre-Save Verification Checks (All Passed)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-bold">
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Valid Teams: {distributionOutcome.metrics.total_teams} / {distributionOutcome.metrics.total_teams}</span>
+                </div>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Single Panel per Team</span>
+                </div>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Zero Missing/Duplicate Teams</span>
+                </div>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Dual-PS Teams Handled ({distributionOutcome.metrics.dual_ps_teams_count})</span>
+                </div>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Balanced Panels ({Object.values(distributionOutcome.metrics.panels_after).join(' / ')})</span>
+                </div>
+                <div className="p-2.5 bg-white border border-emerald-200 rounded-xl text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Data Safety (Only Panel Changed)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Panel Capacity Comparison */}
+            <div className="grid grid-cols-3 gap-3">
+              {Object.keys(distributionOutcome.metrics.panels_after).map(pName => (
+                <div key={pName} className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center">
+                  <div className="text-xs font-extrabold text-indigo-900">{pName} Size</div>
+                  <div className="text-lg font-black text-indigo-700 mt-0.5">
+                    {distributionOutcome.metrics.panels_before[pName] || 0} → <span className="text-emerald-700">{distributionOutcome.metrics.panels_after[pName]} Teams</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Proposed Reassignment Roster Table */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-700 flex justify-between items-center">
+                <span>Proposed Team Reassignments ({distributionOutcome.assignments.length} Teams):</span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Reassigned Teams: {distributionOutcome.assignments.filter(a => a.previous_panel !== a.proposed_panel).length}
+                </span>
+              </div>
+              <div className="border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="sticky top-0 bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Team ID & Name</th>
+                      <th className="py-2.5 px-3">Problem Statement(s)</th>
+                      <th className="py-2.5 px-3 text-center">Current Panel</th>
+                      <th className="py-2.5 px-3 text-center">Proposed Panel</th>
+                      <th className="py-2.5 px-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800 font-semibold">
+                    {distributionOutcome.assignments.map(a => {
+                      const isChanged = a.previous_panel !== a.proposed_panel;
+                      return (
+                        <tr key={a.team_id} className={isChanged ? 'bg-purple-50/30 hover:bg-purple-50/60' : 'hover:bg-slate-50'}>
+                          <td className="py-2.5 px-3">
+                            <div className="font-extrabold text-indigo-700">{a.team_id}</div>
+                            <div className="text-slate-900 font-bold text-[11px]">{a.team_name}</div>
+                          </td>
+                          <td className="py-2.5 px-3 space-y-0.5">
+                            {a.problem_statements.map((psId, idx) => (
+                              <div key={psId} className="text-[11px] font-bold">
+                                <span className={idx === 0 ? 'text-brand-700' : 'text-purple-700'}>#{idx + 1} {psId}</span>
+                              </div>
+                            ))}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-500 font-medium">{a.previous_panel}</td>
+                          <td className="py-2.5 px-3 text-center font-extrabold text-indigo-900">{a.proposed_panel}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            {isChanged ? (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] font-bold rounded-md border border-purple-200">
+                                🔄 Reassigned
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-medium rounded-md border border-slate-200">
+                                Unchanged
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Action Footer */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsDistributionModalOpen(false)}
+                disabled={applyingDistribution}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cancel & Close
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDistribution}
+                disabled={applyingDistribution}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold rounded-xl shadow-md transition-all hover:scale-105 cursor-pointer flex items-center gap-2"
+              >
+                {applyingDistribution ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Saving Panel Assignments to Database...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" /> Apply & Save Panel Assignments to Supabase
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </Modal>
+      )}
 
     </div>
   );

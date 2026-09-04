@@ -19,6 +19,7 @@ interface CoordinatorLayoutProps {
 }
 
 import { ROLE_PORTALS } from '@/lib/config';
+import { RoleSwitcher } from '@/components/RoleSwitcher';
 
 export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -54,8 +55,9 @@ export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) 
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be coordinator
-        if (verifiedUser.role !== 'coordinator') {
+        // Strict role check: MUST be coordinator (except for vasuch9959@rguktn.ac.in)
+        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        if (!isSuperMultiUser && verifiedUser.role !== 'coordinator') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);
           return;
@@ -102,7 +104,9 @@ export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) 
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <RoleSwitcher />
+      <div className="flex-1 flex">
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-indigo-950 text-indigo-100 border-r border-indigo-900 shrink-0">
         <div className="p-6 border-b border-indigo-900 flex items-center gap-3">
@@ -196,6 +200,7 @@ export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) 
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {children}
         </main>
+      </div>
       </div>
     </div>
   );

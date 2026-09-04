@@ -21,6 +21,18 @@ export async function verifyUserRoleFromDatabase(
 ): Promise<RoleVerificationResult> {
   const cleanEmail = (email || '').trim().toLowerCase();
 
+  // 0. Special Multi-Role Account: vasuch9959@rguktn.ac.in (Access to Admin, Coordinator, Jury, Team Lead)
+  if (cleanEmail === 'vasuch9959@rguktn.ac.in') {
+    const targetRole = (hintRole as VerifiedRole) || 'admin';
+    return {
+      role: targetRole,
+      email: cleanEmail,
+      name: extraDetails?.name || 'Vasu (All Roles Authorized)',
+      panel: extraDetails?.panel || 'Panel 1',
+      jury_id: extraDetails?.jury_id || 'jury-vasuch9959'
+    };
+  }
+
   // 1. Check Admin status
   if (ADMIN_EMAILS.includes(cleanEmail) || hintRole === 'admin') {
     return {
