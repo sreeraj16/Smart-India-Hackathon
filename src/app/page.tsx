@@ -70,12 +70,7 @@ export default function LandingPage() {
                 }
               }
 
-              const teams = HackathonStateManager.getTeams();
-              // Check if user is the Team Lead OR a member of a registered team
-              const matchedTeam = teams.find(t => 
-                t.team_lead_email.toLowerCase() === userEmail ||
-                (t.members && t.members.some(m => m.email.toLowerCase() === userEmail))
-              );
+              const matchedTeam = await HackathonStateManager.getTeamForUserAsync(googleUser);
 
               if (matchedTeam) {
                 googleUser.team_id = matchedTeam.team_id;

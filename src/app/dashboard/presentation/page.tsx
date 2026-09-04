@@ -14,12 +14,18 @@ export default function PresentationPage() {
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    const loadedTeam = HackathonStateManager.getTeamById(user?.team_id || 'SIH-2026-1001');
-    setTeam(loadedTeam || null);
-    if (loadedTeam?.google_slides_url) {
-      setSlidesUrl(loadedTeam.google_slides_url);
-    }
+    const loadTeam = async () => {
+      const user = HackathonStateManager.getCurrentUser();
+      let loadedTeam = HackathonStateManager.getTeamForUser(user);
+      if (!loadedTeam && user) {
+        loadedTeam = await HackathonStateManager.getTeamForUserAsync(user);
+      }
+      setTeam(loadedTeam || null);
+      if (loadedTeam?.google_slides_url) {
+        setSlidesUrl(loadedTeam.google_slides_url);
+      }
+    };
+    loadTeam();
   }, []);
 
   const validateGoogleSlidesLink = (url: string): boolean => {

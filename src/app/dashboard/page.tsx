@@ -18,15 +18,24 @@ export default function TeamDashboardPage() {
   const [selectedSecondPS, setSelectedSecondPS] = useState<ProblemStatement | null>(null);
 
   useEffect(() => {
-    const refreshData = () => {
+    const refreshData = async () => {
       const user = HackathonStateManager.getCurrentUser();
       setCurrentUser(user);
-      const teamId = user?.team_id || 'SIH-2026-1001';
-      setTeam(HackathonStateManager.getTeamById(teamId) || null);
+      const foundTeam = HackathonStateManager.getTeamForUser(user);
+      if (foundTeam) {
+        setTeam(foundTeam);
+      } else if (user) {
+        const asyncTeam = await HackathonStateManager.getTeamForUserAsync(user);
+        if (asyncTeam) setTeam(asyncTeam);
+      }
       setAllStatements(HackathonStateManager.getProblemStatements());
     };
 
     refreshData();
+
+    HackathonStateManager.syncFromSupabase().then(() => {
+      refreshData();
+    });
 
     window.addEventListener('sih_teams_updated', refreshData);
     window.addEventListener('sih_auth_changed', refreshData);

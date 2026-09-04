@@ -14,16 +14,18 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
   const [team, setTeam] = useState<Team | null>(null);
 
   useEffect(() => {
-    const handleAuthOrTeamUpdate = () => {
+    const handleAuthOrTeamUpdate = async () => {
       const user = HackathonStateManager.getCurrentUser();
       if (!user || user.role !== 'team_lead') {
         HackathonStateManager.setCurrentUser(null);
         router.push('/login');
       } else {
         setCurrentUser(user);
-        if (user.team_id) {
-          setTeam(HackathonStateManager.getTeamById(user.team_id) || null);
+        let resolvedTeam = HackathonStateManager.getTeamForUser(user);
+        if (!resolvedTeam) {
+          resolvedTeam = await HackathonStateManager.getTeamForUserAsync(user);
         }
+        setTeam(resolvedTeam || null);
       }
     };
 
@@ -64,11 +66,11 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
           {/* Team ID Card */}
           <div className="bg-slate-800 border border-slate-700/80 rounded-2xl p-4 mb-6">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Team ID</div>
-            <div className="text-[11px] font-bold text-white mt-0.5 tracking-tight break-all" title={team ? team.team_id : 'SIH-2026-1001'}>
-              {team ? team.team_id : 'SIH-2026-1001'}
+            <div className="text-[11px] font-bold text-white mt-0.5 tracking-tight break-all" title={team ? team.team_id : 'Pending'}>
+              {team ? team.team_id : '—'}
             </div>
             <div className="text-xs text-slate-400 mt-1 font-medium truncate">
-              {team ? team.team_name : 'NeuralCrafters'}
+              {team ? team.team_name : 'Registered Team'}
             </div>
           </div>
 

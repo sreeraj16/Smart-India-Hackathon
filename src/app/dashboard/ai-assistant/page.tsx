@@ -20,18 +20,24 @@ export default function AIAssistantPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const user = HackathonStateManager.getCurrentUser();
-    const loadedTeam = HackathonStateManager.getTeamById(user?.team_id || 'SIH-2026-1001');
-    setTeam(loadedTeam || null);
+    const loadTeam = async () => {
+      const user = HackathonStateManager.getCurrentUser();
+      let loadedTeam = HackathonStateManager.getTeamForUser(user);
+      if (!loadedTeam && user) {
+        loadedTeam = await HackathonStateManager.getTeamForUserAsync(user);
+      }
+      setTeam(loadedTeam || null);
 
-    const activePS = loadedTeam?.selected_problem_statements[0];
-    const initialGreeting: ChatMessage = {
-      id: 'msg-1',
-      sender: 'ai',
-      text: `Hello ${user?.name || 'Team Lead'}! I am your AI Hackathon Assistant for team "${loadedTeam?.team_name || 'NeuralCrafters'}". I am pre-configured with context on your selected problem statement: "${activePS ? activePS.problem_title : 'Urban Traffic AI'}". How can I assist your pitch preparation today?`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const activePS = loadedTeam?.selected_problem_statements[0];
+      const initialGreeting: ChatMessage = {
+        id: 'msg-1',
+        sender: 'ai',
+        text: `Hello ${user?.name || 'Team Lead'}! I am your AI Hackathon Assistant for team "${loadedTeam?.team_name || 'your registered team'}". I am pre-configured with context on your selected problem statement: "${activePS ? activePS.problem_title : 'Selected Problem Statement'}". How can I assist your pitch preparation today?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages([initialGreeting]);
     };
-    setMessages([initialGreeting]);
+    loadTeam();
   }, []);
 
   useEffect(() => {
@@ -70,7 +76,7 @@ export default function AIAssistantPage() {
     }
 
     if (q.includes('ppt') || q.includes('slides')) {
-      return `📊 **Recommended 8-Slide Hackathon Pitch Deck Structure:**\n\nSlide 1: Team Name, Team ID (${teamData?.team_id || 'SIH-2026-1001'}), Problem Statement ID (${ps.problem_id}).\nSlide 2: Problem Definition & Root Cause (Urban Traffic Gridlock).\nSlide 3: Proposed Solution Architecture & Flowchart.\nSlide 4: Novelty & Technical Innovation (Edge AI & Green Wave).\nSlide 5: Live Prototype / Demonstration Results.\nSlide 6: Scalability & Implementation Feasibility at RGUKT / Smart Cities.\nSlide 7: Business Impact & Environmental Benefits.\nSlide 8: Conclusion & Future Scope.`;
+      return `📊 **Recommended 8-Slide Hackathon Pitch Deck Structure:**\n\nSlide 1: Team Name, Team ID (${teamData?.team_id || 'Team ID'}), Problem Statement ID (${ps.problem_id}).\nSlide 2: Problem Definition & Root Cause (Urban Traffic Gridlock).\nSlide 3: Proposed Solution Architecture & Flowchart.\nSlide 4: Novelty & Technical Innovation (Edge AI & Green Wave).\nSlide 5: Live Prototype / Demonstration Results.\nSlide 6: Scalability & Implementation Feasibility at RGUKT / Smart Cities.\nSlide 7: Business Impact & Environmental Benefits.\nSlide 8: Conclusion & Future Scope.`;
     }
 
     if (q.includes('jury') || q.includes('questions') || q.includes('q&a')) {

@@ -56,8 +56,77 @@ export class HackathonStateManager {
   }
 
   static getTeamById(teamId: string): Team | undefined {
+    if (!teamId) return undefined;
     const teams = this.getTeams();
     return teams.find(t => t.team_id.toLowerCase() === teamId.toLowerCase());
+  }
+
+  static getTeamForUser(user: UserProfile | null): Team | undefined {
+    if (!user) return undefined;
+    const teams = this.getTeams();
+    
+    if (user.team_id) {
+      const matchedById = teams.find(t => t.team_id.toLowerCase() === user.team_id?.toLowerCase());
+      if (matchedById) return matchedById;
+    }
+
+    if (user.email) {
+      const userEmail = user.email.trim().toLowerCase();
+      const matchedByEmail = teams.find(t => {
+        const leadEmail = (t.team_lead_email || '').trim().toLowerCase();
+        if (leadEmail && leadEmail === userEmail) return true;
+        if (t.members && Array.isArray(t.members)) {
+          return t.members.some(m => (m.email || '').trim().toLowerCase() === userEmail);
+        }
+        return false;
+      });
+
+      if (matchedByEmail) {
+        if (user.team_id !== matchedByEmail.team_id) {
+          user.team_id = matchedByEmail.team_id;
+          this.setCurrentUser(user);
+        }
+        return matchedByEmail;
+      }
+    }
+
+    return undefined;
+  }
+
+  static async getTeamForUserAsync(user: UserProfile | null): Promise<Team | undefined> {
+    if (!user) return undefined;
+
+    let team = this.getTeamForUser(user);
+    if (team) return team;
+
+    await this.syncFromSupabase();
+    team = this.getTeamForUser(user);
+    if (team) return team;
+
+    if (user.email) {
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        const userEmail = user.email.trim();
+
+        const { data: memberMatches } = await supabase
+          .from('team_members')
+          .select('team_id')
+          .ilike('email', userEmail)
+          .limit(1);
+
+        if (memberMatches && memberMatches.length > 0) {
+          const foundTeamId = memberMatches[0].team_id;
+          user.team_id = foundTeamId;
+          this.setCurrentUser(user);
+          await this.syncFromSupabase();
+          return this.getTeamById(foundTeamId);
+        }
+      } catch (err) {
+        console.error('Failed direct Supabase team lookup:', err);
+      }
+    }
+
+    return undefined;
   }
 
   static registerTeam(newTeamData: Omit<Team, 'created_at'>): Team {
@@ -429,7 +498,7 @@ export class HackathonStateManager {
             return (a.member_id || '').localeCompare(b.member_id || '');
           });
 
-        const leadMember = members.find(m => m.is_lead);
+        const leadMember = members.find(m => m.is_lead) || members[0];
 
         const selectedPS = (dbMappings || [])
           .filter(m => m.team_id === t.team_id)
@@ -532,26 +601,31 @@ export class HackathonStateManager {
       });
       localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));
 
-      // Dispatch change events to update react listeners
+      // If logged in, update current user's team_id if it matched or changed
+      const currentUser = this.getCurrentUser();
+      if (currentUser && (currentUser.role === 'team_lead' || !currentUser.team_id)) {
+        const userEmail = (currentUser.email || '').trim().toLowerCase();
+        if (userEmail) {
+          const matchedTeam = teams.find(t =>
+            (t.team_lead_email || '').trim().toLowerCase() === userEmail ||
+            (t.members && t.members.some(m => (m.email || '').trim().toLowerCase() === userEmail))
+          );
+          if (matchedTeam && currentUser.team_id !== matchedTeam.team_id) {
+            currentUser.team_id = matchedTeam.team_id;
+            if (this.isBrowser()) {
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
+            }
+          }
+        }
+      }
+
+      // Dispatch change events to update react listeners after currentUser is updated
       window.dispatchEvent(new Event('sih_teams_updated'));
       window.dispatchEvent(new Event('sih_evaluations_updated'));
       window.dispatchEvent(new Event('sih_session_updated'));
       window.dispatchEvent(new Event('sih_audit_updated'));
       window.dispatchEvent(new Event('sih_results_updated'));
-
-      // If logged in, update current user's team_id if it matched or changed
-      const currentUser = this.getCurrentUser();
-      if (currentUser && currentUser.role === 'team_lead') {
-        const userEmail = currentUser.email.toLowerCase();
-        const matchedTeam = teams.find(t =>
-          t.team_lead_email.toLowerCase() === userEmail ||
-          (t.members && t.members.some(m => m.email.toLowerCase() === userEmail))
-        );
-        if (matchedTeam && currentUser.team_id !== matchedTeam.team_id) {
-          currentUser.team_id = matchedTeam.team_id;
-          this.setCurrentUser(currentUser);
-        }
-      }
+      window.dispatchEvent(new Event('sih_auth_changed'));
     } catch (err) {
       console.error('Failed to sync state from Supabase:', err);
     }
