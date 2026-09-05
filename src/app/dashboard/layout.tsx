@@ -46,8 +46,8 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be team_lead (except for vasuch9959@rguktn.ac.in)
-        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        // Strict role check: MUST be team_lead (except for multi-role authorized accounts)
+        const isSuperMultiUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(verifiedUser.email?.toLowerCase() || '');
         if (!isSuperMultiUser && verifiedUser.role !== 'team_lead') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);

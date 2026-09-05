@@ -21,15 +21,17 @@ export async function verifyUserRoleFromDatabase(
 ): Promise<RoleVerificationResult> {
   const cleanEmail = (email || '').trim().toLowerCase();
 
-  // 0. Special Multi-Role Account: vasuch9959@rguktn.ac.in (Access to Admin, Coordinator, Jury, Team Lead)
-  if (cleanEmail === 'vasuch9959@rguktn.ac.in') {
+  // 0. Special Multi-Role Accounts: vasuch9959@rguktn.ac.in & n220615@rguktn.ac.in (Access to Admin, Coordinator, Jury, Team Lead)
+  const MULTI_ROLE_EMAILS = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'];
+  if (MULTI_ROLE_EMAILS.includes(cleanEmail)) {
     const targetRole = (hintRole as VerifiedRole) || 'admin';
+    const defaultName = cleanEmail.includes('n220615') ? 'Jhanu (All Roles Authorized)' : 'Vasu (All Roles Authorized)';
     return {
       role: targetRole,
       email: cleanEmail,
-      name: extraDetails?.name || 'Vasu (All Roles Authorized)',
+      name: extraDetails?.name || defaultName,
       panel: extraDetails?.panel || 'Panel 1',
-      jury_id: extraDetails?.jury_id || 'jury-vasuch9959'
+      jury_id: extraDetails?.jury_id || `jury-${cleanEmail.split('@')[0]}`
     };
   }
 

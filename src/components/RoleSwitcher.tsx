@@ -11,8 +11,10 @@ export function RoleSwitcher() {
   const currentUser = HackathonStateManager.getCurrentUser();
   const userEmail = (currentUser?.email || '').trim().toLowerCase();
 
-  // Only render for vasuch9959@rguktn.ac.in
-  if (userEmail !== 'vasuch9959@rguktn.ac.in') {
+  const isMultiRoleUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(userEmail);
+
+  // Only render for multi-role authorized accounts
+  if (!isMultiRoleUser) {
     return null;
   }
 
@@ -27,7 +29,7 @@ export function RoleSwitcher() {
     <div className="bg-slate-900 text-white border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between text-xs shadow-md">
       <div className="flex items-center gap-2 font-bold text-amber-400">
         <Layers className="w-4 h-4 animate-spin-slow" />
-        <span>Multi-Role Access Authorized: <span className="text-white font-normal">vasuch9959@rguktn.ac.in</span></span>
+        <span>Multi-Role Access Authorized: <span className="text-white font-normal">{userEmail}</span></span>
       </div>
 
       <div className="flex items-center gap-1.5 mt-1 sm:mt-0">

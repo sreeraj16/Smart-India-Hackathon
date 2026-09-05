@@ -55,8 +55,8 @@ export default function CoordinatorLayout({ children }: CoordinatorLayoutProps) 
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be coordinator (except for vasuch9959@rguktn.ac.in)
-        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        // Strict role check: MUST be coordinator (except for multi-role authorized accounts)
+        const isSuperMultiUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(verifiedUser.email?.toLowerCase() || '');
         if (!isSuperMultiUser && verifiedUser.role !== 'coordinator') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);

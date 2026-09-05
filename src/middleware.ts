@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const role = session.authRole;
-    const isSuperMultiUser = session.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+    const isSuperMultiUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(session.email?.toLowerCase() || '');
 
     // Reject unauthorized access attempts for normal users
     if (!isSuperMultiUser) {

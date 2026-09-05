@@ -44,8 +44,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         HackathonStateManager.setCurrentUser(verifiedUser);
 
-        // Strict role check: MUST be admin (except for vasuch9959@rguktn.ac.in)
-        const isSuperMultiUser = verifiedUser.email?.toLowerCase() === 'vasuch9959@rguktn.ac.in';
+        // Strict role check: MUST be admin (except for multi-role authorized accounts)
+        const isSuperMultiUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(verifiedUser.email?.toLowerCase() || '');
         if (!isSuperMultiUser && verifiedUser.role !== 'admin') {
           const targetPortal = ROLE_PORTALS[verifiedUser.role] || '/login';
           router.replace(targetPortal);
