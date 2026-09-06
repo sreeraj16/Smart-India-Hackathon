@@ -22,8 +22,8 @@ export async function verifyUserRoleFromDatabase(
   const cleanEmail = (email || '').trim().toLowerCase();
 
   // 0. Special Multi-Role Accounts: vasuch9959@rguktn.ac.in & n220615@rguktn.ac.in (Access to Admin, Coordinator, Jury, Team Lead)
-  const MULTI_ROLE_EMAILS = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'];
-  if (MULTI_ROLE_EMAILS.includes(cleanEmail)) {
+  const isAuthorizedAdminEmail = ADMIN_EMAILS.includes(cleanEmail);
+  if (isAuthorizedAdminEmail) {
     const targetRole = (hintRole as VerifiedRole) || 'admin';
     const defaultName = cleanEmail.includes('n220615') ? 'Jhanu (All Roles Authorized)' : 'Vasu (All Roles Authorized)';
     return {
@@ -35,18 +35,12 @@ export async function verifyUserRoleFromDatabase(
     };
   }
 
-  // 1. Check Admin status
-  if (ADMIN_EMAILS.includes(cleanEmail) || hintRole === 'admin') {
-    return {
-      role: 'admin',
-      email: cleanEmail,
-      name: extraDetails?.name || (cleanEmail.includes('n220615') ? 'Jhanu (Admin)' : 'Vasu (Admin)')
-    };
-  }
+  // Sanitize hintRole: non-admin emails cannot use 'admin' hintRole
+  const safeHintRole = hintRole === 'admin' ? undefined : hintRole;
 
-  // 2. Check Coordinator status
+  // 1. Check Coordinator status
   if (
-    hintRole === 'coordinator' ||
+    safeHintRole === 'coordinator' ||
     cleanEmail.startsWith('panel') ||
     cleanEmail.endsWith('@sih.local')
   ) {
@@ -63,8 +57,8 @@ export async function verifyUserRoleFromDatabase(
     };
   }
 
-  // 3. Check Jury status
-  if (hintRole === 'jury' || cleanEmail.endsWith('@jury.sih.local')) {
+  // 2. Check Jury status
+  if (safeHintRole === 'jury' || cleanEmail.endsWith('@jury.sih.local')) {
     return {
       role: 'jury',
       email: cleanEmail,
@@ -73,7 +67,7 @@ export async function verifyUserRoleFromDatabase(
     };
   }
 
-  // 4. Database Lookup in Supabase: Check profiles table first for jury/admin/coordinator role overrides
+  // 3. Database Lookup in Supabase: Check profiles table first for jury/coordinator role overrides
   try {
     const { data: dbProfile } = await supabase
       .from('profiles')
@@ -82,9 +76,6 @@ export async function verifyUserRoleFromDatabase(
       .maybeSingle();
 
     if (dbProfile) {
-      if (dbProfile.role === 'admin') {
-        return { role: 'admin', email: cleanEmail, name: dbProfile.name };
-      }
       if (dbProfile.role === 'coordinator') {
         return { role: 'coordinator', email: cleanEmail, name: dbProfile.name, panel: dbProfile.panel };
       }

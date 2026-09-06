@@ -27,15 +27,19 @@ export async function middleware(request: NextRequest) {
     }
 
     const role = session.authRole;
-    const isSuperMultiUser = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(session.email?.toLowerCase() || '');
+    const userEmail = (session.email || '').trim().toLowerCase();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(userEmail);
 
-    // Reject unauthorized access attempts for normal users
-    if (!isSuperMultiUser) {
-      if (isAdmin && role !== 'admin') {
-        const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
-        return NextResponse.redirect(redirectUrl);
-      }
+    // Direct URL Protection for Admin routes: strictly restricted to vasuch9959@rguktn.ac.in & n220615@rguktn.ac.in
+    if (isAdmin && !isAuthorizedAdmin) {
+      const targetPortal = (role && role !== 'admin' && ROLE_PORTALS[role]) || '/login';
+      const redirectUrl = new URL(targetPortal, request.url);
+      redirectUrl.searchParams.set('unauthorized', 'admin_access_denied');
+      return NextResponse.redirect(redirectUrl);
+    }
 
+    // Reject unauthorized access attempts for non-super users accessing other specific portals
+    if (!isAuthorizedAdmin) {
       if (isCoordinator && role !== 'coordinator') {
         const redirectUrl = new URL(ROLE_PORTALS[role] || '/login', request.url);
         return NextResponse.redirect(redirectUrl);

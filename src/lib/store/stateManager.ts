@@ -71,6 +71,12 @@ export class HackathonStateManager {
   }
 
   static deleteTeam(teamId: string): void {
+    const currentUser = this.getCurrentUser();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(currentUser?.email?.trim().toLowerCase() || '');
+    if (!isAuthorizedAdmin) {
+      console.error('Unauthorized team deletion attempt.');
+      return;
+    }
     const teams = this.getTeams().filter(t => t.team_id !== teamId);
     if (this.isBrowser()) {
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
@@ -436,6 +442,12 @@ export class HackathonStateManager {
   }
 
   static setTop50Override(teamId: string, selected: boolean, reason: string, adminName: string = 'Admin'): void {
+    const currentUser = this.getCurrentUser();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(currentUser?.email?.trim().toLowerCase() || '');
+    if (!isAuthorizedAdmin) {
+      console.error('Unauthorized top50 override attempt.');
+      return;
+    }
     const overrides = this.getTop50Overrides();
     const prevStatus = overrides[teamId]?.selected ? 'Selected' : 'Not Selected';
     overrides[teamId] = { selected, reason };

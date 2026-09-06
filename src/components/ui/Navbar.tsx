@@ -31,6 +31,8 @@ export default function Navbar() {
     router.push('/login');
   };
 
+  const isAuthorizedAdminUser = currentUser?.role === 'admin' && ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes((currentUser?.email || '').trim().toLowerCase());
+
   return (
     <nav className="sticky top-0 z-50 glass-nav shadow-sm bg-white/90 backdrop-blur-md border-b border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -94,7 +96,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {currentUser?.role === 'admin' && (
+            {isAuthorizedAdminUser && (
               <Link 
                 href="/admin/dashboard" 
                 className="text-sm font-semibold text-amber-600 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
@@ -207,7 +209,7 @@ export default function Navbar() {
             </Link>
           )}
 
-          {currentUser?.role === 'admin' && (
+          {isAuthorizedAdminUser && (
             <Link
               href="/admin/dashboard"
               onClick={() => setMobileMenuOpen(false)}

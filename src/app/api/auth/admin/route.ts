@@ -12,10 +12,18 @@ export async function POST(req: Request) {
 
     const trimmedEmail = email.trim().toLowerCase();
 
-    const admin1Email = (process.env.ADMIN_EMAIL_1 || 'n220615@rguktn.ac.in').trim().toLowerCase();
+    const AUTHORIZED_ADMIN_EMAILS = ['n220615@rguktn.ac.in', 'vasuch9959@rguktn.ac.in'];
+    if (!AUTHORIZED_ADMIN_EMAILS.includes(trimmedEmail)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized — You do not have permission to access the Admin Dashboard.'
+      }, { status: 403 });
+    }
+
+    const admin1Email = 'n220615@rguktn.ac.in';
     const admin1Password = process.env.ADMIN_PASSWORD_1 || '#Jhanu@143';
 
-    const admin2Email = (process.env.ADMIN_EMAIL_2 || 'vasuch9959@rguktn.ac.in').trim().toLowerCase();
+    const admin2Email = 'vasuch9959@rguktn.ac.in';
     const admin2Password = process.env.ADMIN_PASSWORD_2 || 'vasu@9959';
 
     if (
@@ -25,7 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         user: {
-          user_id: 'admin-1',
+          user_id: trimmedEmail === admin1Email ? 'admin-n220615' : 'admin-vasu',
           name: trimmedEmail === admin1Email ? 'Jhanu (Admin)' : 'Vasu (Admin)',
           email: trimmedEmail,
           role: 'admin',
