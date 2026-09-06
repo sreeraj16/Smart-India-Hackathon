@@ -51,6 +51,7 @@ export interface Team {
   completed_by?: string;
   completed_at?: string;
   google_slides_url?: string | null;
+  google_slides_url_2?: string | null;
   created_at: string;
 }
 

@@ -173,16 +173,35 @@ export default function TeamDashboardPage() {
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-xs font-bold text-slate-400 uppercase">Google Slides Link</div>
-          <div className="mt-2 flex flex-col gap-1">
-            {team.google_slides_url ? (
+          <div className="text-xs font-bold text-slate-400 uppercase">Google Slides Link(s)</div>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {team.selected_problem_statements.length >= 2 ? (
+              <div className="space-y-1 text-xs font-medium">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">PS1 Link:</span>
+                  {team.google_slides_url ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">🟢 Added</span>
+                  ) : (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">🟡 Pending</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">PS2 Link:</span>
+                  {team.google_slides_url_2 ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">🟢 Added</span>
+                  ) : (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">🟡 Pending</span>
+                  )}
+                </div>
+              </div>
+            ) : team.google_slides_url ? (
               <>
                 <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full w-max">
                   <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 🟢 Configured
                 </span>
                 <button
                   onClick={() => window.open(team.google_slides_url || '', '_blank')}
-                  className="text-[10px] text-indigo-650 hover:underline font-bold text-left mt-1.5 flex items-center gap-0.5"
+                  className="text-[10px] text-indigo-650 hover:underline font-bold text-left mt-1 flex items-center gap-0.5"
                 >
                   Open Slides ↗
                 </button>
@@ -246,18 +265,35 @@ export default function TeamDashboardPage() {
             </div>
 
             <div className="space-y-4">
-              {team.selected_problem_statements.map((ps, idx) => (
-                <div key={ps.problem_id} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-extrabold text-brand-700 bg-brand-50 border border-brand-100 px-2.5 py-0.5 rounded-md">
-                      PS #{idx + 1}: {ps.problem_id}
-                    </span>
-                    <Badge variant={ps.category === 'Software' ? 'blue' : 'purple'}>{ps.category}</Badge>
+              {team.selected_problem_statements.map((ps, idx) => {
+                const psSlidesUrl = idx === 0 ? team.google_slides_url : team.google_slides_url_2;
+                return (
+                  <div key={ps.problem_id} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-extrabold text-brand-700 bg-brand-50 border border-brand-100 px-2.5 py-0.5 rounded-md">
+                        PS #{idx + 1}: {ps.problem_id}
+                      </span>
+                      <Badge variant={ps.category === 'Software' ? 'blue' : 'purple'}>{ps.category}</Badge>
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-1">{ps.problem_title}</h4>
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{ps.description}</p>
+                    
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Slides Link: {psSlidesUrl ? <span className="text-emerald-700 font-bold">🟢 Submitted</span> : <span className="text-amber-700 font-bold">Not Submitted</span>}
+                      </span>
+                      {psSlidesUrl && (
+                        <button
+                          onClick={() => window.open(psSlidesUrl, '_blank')}
+                          className="text-[11px] text-indigo-650 hover:underline font-bold"
+                        >
+                          View Slides ↗
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 mb-1">{ps.problem_title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{ps.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

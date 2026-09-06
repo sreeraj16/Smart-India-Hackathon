@@ -117,7 +117,8 @@ export function exportAllTeamsToExcel(teams: Team[], filename = 'SIH_2026_Regist
       'Academic Year': t.year || (lead ? lead.year : 'E3'),
       'Registration Status': t.registration_status,
       'Panel Assignment': t.panel || 'Panel 1',
-      'Google Slides Link': t.google_slides_url || 'Pending',
+      'Google Slides Link - PS1': t.google_slides_url || 'Pending',
+      'Google Slides Link - PS2': t.selected_problem_statements.length >= 2 ? (t.google_slides_url_2 || 'Pending') : 'N/A',
       'Presentation Completed': t.presentation_completed ? 'YES' : 'NO',
       'Completed By': t.completed_by || '-',
       'Completed At': t.completed_at || '-',
@@ -177,7 +178,7 @@ export function exportCoordinatorTeamsToExcel(teams: Team[], filename?: string) 
     const hasSecondPS = psList.length > 1;
 
     const presentationLink1 = t.google_slides_url || t.ppt_submission?.file_url || 'Not Submitted';
-    const presentationLink2 = hasSecondPS ? 'Not Submitted' : 'Not Applicable';
+    const presentationLink2 = hasSecondPS ? (t.google_slides_url_2 || 'Not Submitted') : 'Not Applicable';
 
     return {
       'S.No': idx + 1,

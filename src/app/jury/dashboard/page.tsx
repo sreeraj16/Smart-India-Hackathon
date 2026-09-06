@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team, JuryEvaluation } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
-import { Award, ShieldAlert, FileText, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Award, ShieldAlert, FileText, CheckCircle2, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 
 export default function JuryDashboardPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [evaluations, setEvaluations] = useState<JuryEvaluation[]>([]);
   const [showGuidelines, setShowGuidelines] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setTeams(HackathonStateManager.getTeams());
@@ -44,6 +45,29 @@ export default function JuryDashboardPage() {
 
   const currentUser = HackathonStateManager.getCurrentUser();
   const currentJuryId = currentUser?.jury_id || 'jury-1';
+
+  // Case-insensitive filtering across Team ID, Team Name, Team Lead Name, Panel, Problem Statements, and Members
+  const filteredTeams = teams.filter((team) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+
+    const matchId = (team.team_id || '').toLowerCase().includes(q);
+    const matchName = (team.team_name || '').toLowerCase().includes(q);
+    const matchLead = (team.team_lead_name || '').toLowerCase().includes(q);
+    const matchPanel = (team.panel || '').toLowerCase().includes(q);
+
+    const matchPS = team.selected_problem_statements?.some(ps =>
+      (ps.problem_id || '').toLowerCase().includes(q) ||
+      (ps.problem_title || '').toLowerCase().includes(q)
+    );
+
+    const matchMember = team.members?.some(m =>
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.id_number || '').toLowerCase().includes(q)
+    );
+
+    return matchId || matchName || matchLead || matchPanel || matchPS || matchMember;
+  });
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -91,64 +115,136 @@ export default function JuryDashboardPage() {
         )}
       </div>
 
+      {/* Team Search & Filter Input Bar */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Search className="w-4 h-4 text-emerald-600" /> Search & Filter Teams
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Quickly find any team by Team ID, Team Name, Team Lead Name, Panel, or Problem Statement ID.
+            </p>
+          </div>
+          <span className="text-xs font-extrabold text-slate-700 bg-slate-100 px-3.5 py-1.5 rounded-xl border border-slate-200">
+            Showing {filteredTeams.length} of {teams.length} teams
+          </span>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search Teams (e.g. ThinkAi, SIH26047, Panduru, Panel 1)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Roster of Assigned Teams */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900">Assigned Teams for Evaluation</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {teams.map((team) => {
-            const myEval = evaluations.find(e => e.jury_id === currentJuryId && e.team_id === team.team_id);
-            const hasSlides = !!(team.google_slides_url || team.ppt_submission);
-            const primaryPS = team.selected_problem_statements[0];
+        {filteredTeams.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 shadow-sm space-y-3">
+            <Search className="w-8 h-8 text-slate-400 mx-auto" />
+            <h3 className="text-sm font-bold text-slate-900">No teams found matching "{searchQuery}"</h3>
+            <p className="text-xs text-slate-500">Try adjusting your search criteria or clear the search input.</p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+            >
+              Clear Search Filter
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredTeams.map((team) => {
+              const myEval = evaluations.find(e => e.jury_id === currentJuryId && e.team_id === team.team_id);
+              const psList = team.selected_problem_statements || [];
+              const primaryPS = psList[0];
+              const secondaryPS = psList[1];
+              const isDualPS = psList.length >= 2;
 
-            return (
-              <div
-                key={team.team_id}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-emerald-300 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-extrabold text-xs text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1 rounded-lg">
-                      {team.team_id}
-                    </span>
-                    {myEval ? (
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Evaluated ({myEval.total_score}/100)
+              const hasSlides1 = !!(team.google_slides_url || team.ppt_submission);
+              const hasSlides2 = !!team.google_slides_url_2;
+
+              return (
+                <div
+                  key={team.team_id}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-emerald-300 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-extrabold text-xs text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1 rounded-lg">
+                        {team.team_id}
                       </span>
-                    ) : (
-                      <Badge variant="yellow">Pending Evaluation</Badge>
-                    )}
+                      {myEval ? (
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Evaluated ({myEval.total_score}/100)
+                        </span>
+                      ) : (
+                        <Badge variant="yellow">Pending Evaluation</Badge>
+                      )}
+                    </div>
+
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">{team.team_name}</h3>
+                    <p className="text-xs text-slate-500 mb-4">Lead: {team.team_lead_name} • {team.members.length} Members • {team.panel || 'Panel 1'}</p>
+
+                    <div className="space-y-2 mb-6">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1">
+                        <div className="font-extrabold text-brand-700">PS1 ({primaryPS?.problem_id}): {primaryPS?.category}</div>
+                        <div className="font-bold text-slate-800 line-clamp-1">{primaryPS?.problem_title}</div>
+                      </div>
+
+                      {isDualPS && secondaryPS && (
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1">
+                          <div className="font-extrabold text-indigo-700">PS2 ({secondaryPS?.problem_id}): {secondaryPS?.category}</div>
+                          <div className="font-bold text-slate-800 line-clamp-1">{secondaryPS?.problem_title}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">{team.team_name}</h3>
-                  <p className="text-xs text-slate-500 mb-4">Lead: {team.team_lead_name} • {team.members.length} Members</p>
+                  <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="text-[11px] text-slate-600 font-bold space-y-0.5">
+                      {isDualPS ? (
+                        <>
+                          <div>PS1 Slides: {hasSlides1 ? '🟢 Added' : '🔴 Pending'}</div>
+                          <div>PS2 Slides: {hasSlides2 ? '🟢 Added' : '🔴 Pending'}</div>
+                        </>
+                      ) : (
+                        <div>Slides: {hasSlides1 ? '🟢 Placed' : '🔴 Not Placed'}</div>
+                      )}
+                    </div>
 
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-6 text-xs space-y-1">
-                    <div className="font-extrabold text-brand-700">{primaryPS?.problem_id}: {primaryPS?.category}</div>
-                    <div className="font-bold text-slate-800">{primaryPS?.problem_title}</div>
+                    <Link
+                      href={`/jury/evaluate/${team.team_id}`}
+                      className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                        myEval
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105'
+                      }`}
+                    >
+                      <Award className="w-4 h-4" /> {myEval ? 'Review / Edit Score' : 'Evaluate Team'}
+                    </Link>
                   </div>
                 </div>
-
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-bold">
-                    Google Slides: {hasSlides ? '🟢 Placed' : '🔴 Not Placed'}
-                  </span>
-
-                  <Link
-                    href={`/jury/evaluate/${team.team_id}`}
-                    className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 ${
-                      myEval
-                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105'
-                    }`}
-                  >
-                    <Award className="w-4 h-4" /> {myEval ? 'Review / Edit Score' : 'Evaluate Team'}
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
     </div>

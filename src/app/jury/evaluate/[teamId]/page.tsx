@@ -224,46 +224,78 @@ export default function JuryEvaluatePage() {
         <div>
           <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Evaluation Form</span>
           <h1 className="text-2xl font-extrabold text-slate-900">{team.team_name}</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            PS: <strong className="text-slate-800">{team.selected_problem_statements[0]?.problem_id}</strong> — {team.selected_problem_statements[0]?.problem_title}
-          </p>
+          <div className="mt-2 space-y-1 text-xs text-slate-600">
+            <div>
+              <strong className="text-brand-700">PS1:</strong> {team.selected_problem_statements[0]?.problem_id} — {team.selected_problem_statements[0]?.problem_title}
+            </div>
+            {team.selected_problem_statements.length >= 2 && team.selected_problem_statements[1] && (
+              <div>
+                <strong className="text-indigo-700">PS2:</strong> {team.selected_problem_statements[1]?.problem_id} — {team.selected_problem_statements[1]?.problem_title}
+              </div>
+            )}
+          </div>
         </div>
 
-        {team.google_slides_url ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsPreviewOpen(true)}
-              className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-indigo-600" /> Preview Slides
-            </button>
-            <button
-              onClick={() => window.open(team.google_slides_url || '', '_blank')}
-              className="px-4 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs rounded-xl border border-brand-200 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              Open Google Slides ↗
-            </button>
+        <div className="flex flex-col gap-2">
+          {/* PS1 Presentation Links */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-slate-500 min-w-[65px]">PS1 Deck:</span>
+            {team.google_slides_url ? (
+              <>
+                <button
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5 text-indigo-600" /> Preview PS1
+                </button>
+                <button
+                  onClick={() => window.open(team.google_slides_url || '', '_blank')}
+                  className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs rounded-xl border border-brand-200 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                >
+                  Open PS1 ↗
+                </button>
+              </>
+            ) : team.ppt_submission ? (
+              <button
+                onClick={() => window.open(team.ppt_submission?.file_url || '', '_blank')}
+                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+              >
+                Open Backup PPT ↗
+              </button>
+            ) : (
+              <span className="text-[11px] text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                Not Submitted
+              </span>
+            )}
           </div>
-        ) : team.ppt_submission ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsPreviewOpen(true)}
-              className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-slate-650" /> Preview Backup PPT
-            </button>
-            <button
-              onClick={() => window.open(team.ppt_submission?.file_url || '', '_blank')}
-              className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              Open PPT File ↗
-            </button>
-          </div>
-        ) : (
-          <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
-            No Slides URL configured
-          </span>
-        )}
+
+          {/* PS2 Presentation Links (if dual PS) */}
+          {team.selected_problem_statements.length >= 2 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-500 min-w-[65px]">PS2 Deck:</span>
+              {team.google_slides_url_2 ? (
+                <>
+                  <button
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-indigo-600" /> Preview PS2
+                  </button>
+                  <button
+                    onClick={() => window.open(team.google_slides_url_2 || '', '_blank')}
+                    className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-750 text-white font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                  >
+                    Open PS2 ↗
+                  </button>
+                </>
+              ) : (
+                <span className="text-[11px] text-amber-700 font-semibold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                  Not Submitted
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {errorMsg && (

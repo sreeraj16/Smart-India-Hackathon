@@ -9,6 +9,7 @@ ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS presentation_completed BOOLEAN
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_by VARCHAR(50);
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS google_slides_url VARCHAR(500);
+ALTER TABLE public.teams ADD COLUMN IF NOT EXISTS google_slides_url_2 VARCHAR(500);
 ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS gender VARCHAR(10) DEFAULT 'M';
 
 
