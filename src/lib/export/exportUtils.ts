@@ -162,3 +162,72 @@ export function exportAllTeamsToExcel(teams: Team[], filename = 'SIH_2026_Regist
   XLSX.writeFile(workbook, filename);
 }
 
+export function exportCoordinatorTeamsToExcel(teams: Team[], filename?: string) {
+  const currentDate = new Date().toISOString().split('T')[0];
+  const defaultFilename = `SIH_Coordinator_Team_Data_${currentDate}.xlsx`;
+  const exportFilename = filename || defaultFilename;
+
+  const exportRows = teams.map((t, idx) => {
+    const lead = t.members?.find(m => m.is_lead) || t.members?.[0];
+    const leadName = t.team_lead_name || lead?.name || 'Not Available';
+
+    const psList = t.selected_problem_statements || [];
+    const ps1 = psList[0];
+    const ps2 = psList[1];
+    const hasSecondPS = psList.length > 1;
+
+    const presentationLink1 = t.google_slides_url || t.ppt_submission?.file_url || 'Not Submitted';
+    const presentationLink2 = hasSecondPS ? 'Not Submitted' : 'Not Applicable';
+
+    return {
+      'S.No': idx + 1,
+      'Team ID': t.team_id || 'Not Available',
+      'Team Name': t.team_name || 'Not Available',
+      'Team Lead Name': leadName,
+      'PS ID 1': ps1?.problem_id || 'Not Available',
+      'Presentation Link 1': presentationLink1,
+      'PS ID 2': hasSecondPS ? (ps2?.problem_id || 'Not Available') : 'Not Applicable',
+      'Presentation Link 2': presentationLink2,
+      'Panel': t.panel || 'Not Available'
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+  // Set column widths for optimal display
+  worksheet['!cols'] = [
+    { wch: 6 },   // S.No
+    { wch: 34 },  // Team ID
+    { wch: 25 },  // Team Name
+    { wch: 25 },  // Team Lead Name
+    { wch: 15 },  // PS ID 1
+    { wch: 50 },  // Presentation Link 1
+    { wch: 15 },  // PS ID 2
+    { wch: 50 },  // Presentation Link 2
+    { wch: 15 },  // Panel
+  ];
+
+  // Add hyperlinks for URLs if present
+  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:I1');
+  for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+    // Column F (Presentation Link 1) -> col index 5
+    const cellRefLink1 = XLSX.utils.encode_cell({ r: R, c: 5 });
+    const cellLink1 = worksheet[cellRefLink1];
+    if (cellLink1 && typeof cellLink1.v === 'string' && cellLink1.v.startsWith('http')) {
+      cellLink1.l = { Target: cellLink1.v, Tooltip: 'Open Presentation Link 1' };
+    }
+
+    // Column H (Presentation Link 2) -> col index 7
+    const cellRefLink2 = XLSX.utils.encode_cell({ r: R, c: 7 });
+    const cellLink2 = worksheet[cellRefLink2];
+    if (cellLink2 && typeof cellLink2.v === 'string' && cellLink2.v.startsWith('http')) {
+      cellLink2.l = { Target: cellLink2.v, Tooltip: 'Open Presentation Link 2' };
+    }
+  }
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Coordinator Team Data');
+  XLSX.writeFile(workbook, exportFilename);
+}
+
+

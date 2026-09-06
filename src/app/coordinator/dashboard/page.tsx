@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { Team, UserProfile, PPTSubmission } from '@/lib/types';
 import { createClient } from '@/utils/supabase/client';
+import { exportCoordinatorTeamsToExcel } from '@/lib/export/exportUtils';
 import { 
   Search, 
   Tv, 
@@ -18,8 +19,11 @@ import {
   Maximize2,
   FileCheck,
   AlertTriangle,
-  PlayCircle
+  PlayCircle,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
+
 
 export default function CoordinatorDashboard() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -27,11 +31,37 @@ export default function CoordinatorDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [panelFilter, setPanelFilter] = useState<string>('all');
 
   // Fullscreen presentation states
   const [isPresentationFullScreen, setIsPresentationFullScreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Compute displayed teams for the data table
+  const getDisplayedTeams = () => {
+    let list = teams;
+    if (panelFilter !== 'all') {
+      list = list.filter(t => (t.panel || 'Panel 1') === panelFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(t =>
+        t.team_id.toLowerCase().includes(q) ||
+        t.team_name.toLowerCase().includes(q) ||
+        t.team_lead_name.toLowerCase().includes(q) ||
+        t.members?.some(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)) ||
+        (t.panel && t.panel.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  };
+
+  const handleDownloadExcel = () => {
+    const listToExport = getDisplayedTeams();
+    exportCoordinatorTeamsToExcel(listToExport);
+  };
+
 
   useEffect(() => {
     if (!isPresentationFullScreen) return;
@@ -467,10 +497,20 @@ export default function CoordinatorDashboard() {
             Manage live slides, custom time limits, and confirm presentation status for {currentUser?.panel || 'Panel 1'}
           </p>
         </div>
-        <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 backdrop-blur z-10 text-right">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Active Node</div>
-          <div className="text-base font-extrabold">{currentUser?.panel || 'Panel 1'}</div>
+        <div className="flex flex-wrap items-center gap-3 z-10">
+          <button
+            onClick={handleDownloadExcel}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-2xl shadow-lg transition-all flex items-center gap-2 border border-emerald-400/30 cursor-pointer"
+            title="Download Excel File (.xlsx)"
+          >
+            <Download className="w-4 h-4" /> Download Excel
+          </button>
+          <div className="bg-white/10 px-4 py-2 rounded-2xl border border-white/20 backdrop-blur text-right">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Active Node</div>
+            <div className="text-base font-extrabold">{currentUser?.panel || 'Panel 1'}</div>
+          </div>
         </div>
+
       </div>
 
       {/* Progress Cards */}
@@ -548,6 +588,167 @@ export default function CoordinatorDashboard() {
           </div>
         )}
       </div>
+
+      {/* Coordinator Roster Data Table & Excel Export */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Coordinator Team Roster Data
+            </h2>
+            <p className="text-xs text-slate-500 mt-1 font-semibold">
+              View team details, problem statement selections, presentation links, and panel assignments.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Panel Filter Dropdown */}
+            <div className="relative flex-1 sm:flex-initial">
+              <select
+                value={panelFilter}
+                onChange={(e) => setPanelFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="all">All Panels ({teams.length} Teams)</option>
+                <option value={currentUser?.panel || 'Panel 1'}>My Panel ({currentUser?.panel || 'Panel 1'})</option>
+                <option value="Panel 1">Panel 1</option>
+                <option value="Panel 2">Panel 2</option>
+                <option value="Panel 3">Panel 3</option>
+                <option value="Panel 4">Panel 4</option>
+              </select>
+            </div>
+
+            {/* Download Excel Button */}
+            <button
+              onClick={handleDownloadExcel}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              title="Download Excel File (.xlsx)"
+            >
+              <Download className="w-4 h-4" /> Download Excel
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-900 text-white font-bold">
+                <th className="p-3 text-center border-b border-slate-800">S.No</th>
+                <th className="p-3 border-b border-slate-800">Team ID</th>
+                <th className="p-3 border-b border-slate-800">Team Name</th>
+                <th className="p-3 border-b border-slate-800">Team Lead Name</th>
+                <th className="p-3 border-b border-slate-800">PS ID 1</th>
+                <th className="p-3 border-b border-slate-800">Presentation Link 1</th>
+                <th className="p-3 border-b border-slate-800">PS ID 2</th>
+                <th className="p-3 border-b border-slate-800">Presentation Link 2</th>
+                <th className="p-3 border-b border-slate-800">Panel</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {getDisplayedTeams().map((t, idx) => {
+                const lead = t.members?.find(m => m.is_lead) || t.members?.[0];
+                const leadName = t.team_lead_name || lead?.name || 'Not Available';
+
+                const psList = t.selected_problem_statements || [];
+                const ps1 = psList[0];
+                const ps2 = psList[1];
+                const hasSecondPS = psList.length > 1;
+
+                const link1 = t.google_slides_url || t.ppt_submission?.file_url || null;
+
+                return (
+                  <tr key={t.team_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                    
+                    <td className="p-3 font-mono font-extrabold text-indigo-700 whitespace-nowrap">
+                      {t.team_id || 'Not Available'}
+                    </td>
+                    
+                    <td className="p-3 font-bold text-slate-900 whitespace-nowrap">
+                      {t.team_name || 'Not Available'}
+                    </td>
+                    
+                    <td className="p-3 text-slate-800 whitespace-nowrap">
+                      {leadName}
+                    </td>
+                    
+                    <td className="p-3 whitespace-nowrap">
+                      {ps1?.problem_id ? (
+                        <span className="font-extrabold text-[11px] text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded">
+                          {ps1.problem_id}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-semibold">Not Available</span>
+                      )}
+                    </td>
+                    
+                    <td className="p-3">
+                      {link1 ? (
+                        <a
+                          href={link1}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1.5 hover:underline max-w-xs truncate"
+                          title={link1}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{link1}</span>
+                        </a>
+                      ) : (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                          Not Submitted
+                        </span>
+                      )}
+                    </td>
+                    
+                    <td className="p-3 whitespace-nowrap">
+                      {hasSecondPS ? (
+                        ps2?.problem_id ? (
+                          <span className="font-extrabold text-[11px] text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded">
+                            {ps2.problem_id}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-semibold">Not Available</span>
+                        )
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                          Not Applicable
+                        </span>
+                      )}
+                    </td>
+                    
+                    <td className="p-3">
+                      {hasSecondPS ? (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                          Not Submitted
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                          Not Applicable
+                        </span>
+                      )}
+                    </td>
+                    
+                    <td className="p-3 whitespace-nowrap font-extrabold text-slate-700">
+                      {t.panel || 'Not Available'}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {getDisplayedTeams().length === 0 && (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-slate-400 font-bold">
+                    No team records found matching current selection criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
 
       {selectedTeam ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
