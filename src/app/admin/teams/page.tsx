@@ -19,15 +19,28 @@ import {
   Download, 
   Edit3, 
   Trash2, 
-  AlertTriangle 
+  AlertTriangle,
+  Award,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
+
+interface ScoreSummary {
+  totalScore: number;
+  maxScore: number;
+  submitted: number;
+  expected: number;
+  status: 'Completed' | 'Pending' | 'Not Evaluated';
+}
 
 export default function AdminTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [scoresMap, setScoresMap] = useState<Record<string, ScoreSummary>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [pptFilter, setPptFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [psCountFilter, setPsCountFilter] = useState<string>('All');
+  const [scoreStatusFilter, setScoreStatusFilter] = useState<string>('All');
 
   // Edit / Delete Modal state
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -38,11 +51,41 @@ export default function AdminTeamsPage() {
     loadTeams();
     const handleUpdate = () => loadTeams();
     window.addEventListener('sih_teams_updated', handleUpdate);
-    return () => window.removeEventListener('sih_teams_updated', handleUpdate);
+    window.addEventListener('sih_evaluations_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sih_teams_updated', handleUpdate);
+      window.removeEventListener('sih_evaluations_updated', handleUpdate);
+    };
   }, []);
 
   const loadTeams = () => {
-    setTeams(HackathonStateManager.getTeams());
+    const allTeams = HackathonStateManager.getTeams();
+    setTeams(allTeams);
+
+    // Build Jury Evaluation Scores Map for teams directory
+    const evals = HackathonStateManager.getEvaluations();
+    const evalsByTeam: Record<string, any[]> = {};
+    evals.forEach(e => {
+      if (!evalsByTeam[e.team_id]) evalsByTeam[e.team_id] = [];
+      evalsByTeam[e.team_id].push(e);
+    });
+
+    const sMap: Record<string, ScoreSummary> = {};
+    allTeams.forEach(t => {
+      const teamEvals = evalsByTeam[t.team_id] || [];
+      const submitted = teamEvals.length;
+      const expected = 6;
+      const totalScore = teamEvals.reduce((sum, ev) => sum + (ev.total_score || 0), 0);
+      const maxScore = expected * 100;
+      
+      let status: 'Completed' | 'Pending' | 'Not Evaluated' = 'Not Evaluated';
+      if (submitted === 0) status = 'Not Evaluated';
+      else if (submitted >= expected || t.completed_at) status = 'Completed';
+      else status = 'Pending';
+
+      sMap[t.team_id] = { totalScore, maxScore, submitted, expected, status };
+    });
+    setScoresMap(sMap);
   };
 
   const handleDeleteConfirm = () => {
@@ -78,7 +121,12 @@ export default function AdminTeamsPage() {
       (psCountFilter === '2PS' && psCount >= 2) ||
       (psCountFilter === '1PS' && psCount === 1);
 
-    return matchesSearch && matchesPpt && matchesStatus && matchesPsCount;
+    const scoreInfo = scoresMap[team.team_id];
+    const matchesScoreStatus = 
+      scoreStatusFilter === 'All' || 
+      (scoreInfo && scoreInfo.status === scoreStatusFilter);
+
+    return matchesSearch && matchesPpt && matchesStatus && matchesPsCount && matchesScoreStatus;
   });
 
   return (
@@ -89,7 +137,7 @@ export default function AdminTeamsPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Registered Teams Directory</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Verified unique team roster. Admin can edit, update, delete with confirmation, and export full data.
+            Verified unique team roster with Jury score visibility. Admin can view scores, edit registrations, delete with confirmation, and export full data.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -125,6 +173,20 @@ export default function AdminTeamsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-slate-500 font-semibold">Jury Score Status:</span>
+            <select
+              value={scoreStatusFilter}
+              onChange={(e) => setScoreStatusFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+            >
+              <option value="All">All Jury Scores</option>
+              <option value="Completed">Completed (6/6)</option>
+              <option value="Pending">Pending Evaluation</option>
+              <option value="Not Evaluated">Not Evaluated (0/6)</option>
+            </select>
+          </div>
+
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-slate-500 font-semibold">Problem Statements:</span>
             <select
@@ -186,6 +248,7 @@ export default function AdminTeamsPage() {
                   <th className="py-3.5 px-4">Problem Statement(s)</th>
                   <th className="py-3.5 px-4">Presentation Link</th>
                   <th className="py-3.5 px-4 text-center">Panel</th>
+                  <th className="py-3.5 px-4 text-center">Jury Score</th>
                   <th className="py-3.5 px-4 text-right">Admin Actions</th>
                 </tr>
               </thead>
@@ -194,6 +257,7 @@ export default function AdminTeamsPage() {
                   const lead = team.members.find(m => m.is_lead) || team.members[0];
                   const primaryPS = team.selected_problem_statements[0];
                   const secondaryPS = team.selected_problem_statements[1];
+                  const scoreInfo = scoresMap[team.team_id];
 
                   return (
                     <tr key={team.team_id} className="hover:bg-slate-50/80 transition-colors">
@@ -245,6 +309,25 @@ export default function AdminTeamsPage() {
                       <td className="py-3.5 px-4 text-center font-bold text-slate-700">
                         {team.panel || 'Panel 1'}
                       </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {scoreInfo ? (
+                          <div className="space-y-0.5">
+                            <div className="font-black text-brand-700">
+                              {scoreInfo.totalScore} <span className="text-[10px] text-slate-400 font-bold">/ {scoreInfo.maxScore}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-semibold">{scoreInfo.submitted}/{scoreInfo.expected} Evals</div>
+                            <span className={`inline-block px-2 py-0.5 text-[9px] font-extrabold rounded-full ${
+                              scoreInfo.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
+                              scoreInfo.status === 'Pending' ? 'bg-amber-100 text-amber-800' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {scoreInfo.status}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[10px]">No Scores</span>
+                        )}
+                      </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
@@ -264,7 +347,7 @@ export default function AdminTeamsPage() {
                           <Link
                             href={`/admin/teams/${team.team_id}`}
                             className="p-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg transition-colors cursor-pointer"
-                            title="View Full Details"
+                            title="View Full Details & Jury Scores"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </Link>

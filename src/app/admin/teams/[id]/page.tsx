@@ -204,9 +204,19 @@ export default function AdminTeamDetailPage() {
             <div className="text-2xl font-extrabold text-emerald-600">
               {(() => {
                 const totalAccum = evaluations.reduce((sum, ev) => sum + ev.total_score, 0);
-                const maxPossible = evaluations.length * 100;
+                const expectedCount = 6;
+                const maxPossible = expectedCount * 100;
                 return evaluations.length > 0 ? `${totalAccum} / ${maxPossible}` : 'Not Evaluated Yet';
               })()}
+            </div>
+            <div className="text-[11px] font-extrabold mt-0.5">
+              <span className={`inline-block px-2.5 py-0.5 rounded-full ${
+                evaluations.length >= 6 || team.completed_at ? 'bg-emerald-100 text-emerald-800' :
+                evaluations.length > 0 ? 'bg-amber-100 text-amber-800' :
+                'bg-slate-100 text-slate-600'
+              }`}>
+                {evaluations.length} / 6 Evaluations • {evaluations.length >= 6 || team.completed_at ? 'Completed' : evaluations.length > 0 ? 'Pending' : 'Not Evaluated'}
+              </span>
             </div>
           </div>
         </div>

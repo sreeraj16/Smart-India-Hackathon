@@ -20,8 +20,39 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   AlertCircle,
-  Search
+  Search,
+  Eye,
+  ChevronRight,
+  Filter
 } from 'lucide-react';
+
+interface TeamScoreItem {
+  team_id: string;
+  team_name: string;
+  team_lead_name: string;
+  panel: string;
+  evaluations_submitted: number;
+  expected_evaluations: number;
+  evaluations_display: string;
+  total_score: number;
+  max_possible_score: number;
+  status: 'Completed' | 'Pending' | 'Not Evaluated';
+  individual_scores: Array<{
+    eval_index: number;
+    evaluation_id: string;
+    jury_id: string;
+    jury_name: string;
+    innovation_score: number;
+    relevance_score: number;
+    technical_score: number;
+    presentation_score: number;
+    qa_score: number;
+    total_score: number;
+    max_score: number;
+    comments: string;
+    submitted_at: string;
+  }>;
+}
 
 export default function AdminDashboardPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -45,11 +76,92 @@ export default function AdminDashboardPage() {
   const [isTwoPSModalOpen, setIsTwoPSModalOpen] = useState(false);
   const [deptFilter, setDeptFilter] = useState('All');
 
+  // --- ADMIN SCORES STATE ---
+  const [teamScores, setTeamScores] = useState<TeamScoreItem[]>([]);
+  const [scoreSearchQuery, setScoreSearchQuery] = useState('');
+  const [scorePanelFilter, setScorePanelFilter] = useState('All');
+  const [scoreStatusFilter, setScoreStatusFilter] = useState('All');
+  const [selectedScoreTeam, setSelectedScoreTeam] = useState<TeamScoreItem | null>(null);
+  const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
+
   useEffect(() => {
     loadDashboardData();
+    loadScoresData();
     window.addEventListener('sih_teams_updated', loadDashboardData);
-    return () => window.removeEventListener('sih_teams_updated', loadDashboardData);
+    window.addEventListener('sih_evaluations_updated', loadScoresData);
+    return () => {
+      window.removeEventListener('sih_teams_updated', loadDashboardData);
+      window.removeEventListener('sih_evaluations_updated', loadScoresData);
+    };
   }, []);
+
+  const loadScoresData = async () => {
+    try {
+      const res = await fetch('/api/admin/scores');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.scores)) {
+          setTeamScores(json.scores);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('API score fetch failed, utilizing state manager fallback:', err);
+    }
+
+    // Fallback sync calculation from local store and state manager
+    const allTeams = HackathonStateManager.getTeams();
+    const allEvals = HackathonStateManager.getEvaluations();
+
+    const evalsByTeam: Record<string, typeof allEvals> = {};
+    allEvals.forEach(e => {
+      if (!evalsByTeam[e.team_id]) evalsByTeam[e.team_id] = [];
+      evalsByTeam[e.team_id].push(e);
+    });
+
+    const fallbackScores: TeamScoreItem[] = allTeams.map(t => {
+      const evs = evalsByTeam[t.team_id] || [];
+      const submittedCount = evs.length;
+      const expectedCount = 6;
+      const totalScore = evs.reduce((acc, curr) => acc + (curr.total_score || 0), 0);
+      const maxPossibleScore = expectedCount * 100;
+
+      let status: 'Completed' | 'Pending' | 'Not Evaluated' = 'Not Evaluated';
+      if (submittedCount === 0) status = 'Not Evaluated';
+      else if (submittedCount >= expectedCount || t.completed_at) status = 'Completed';
+      else status = 'Pending';
+
+      return {
+        team_id: t.team_id,
+        team_name: t.team_name,
+        team_lead_name: t.team_lead_name || '-',
+        panel: t.panel || 'Panel 1',
+        evaluations_submitted: submittedCount,
+        expected_evaluations: expectedCount,
+        evaluations_display: `${submittedCount} / ${expectedCount}`,
+        total_score: totalScore,
+        max_possible_score: maxPossibleScore,
+        status,
+        individual_scores: evs.map((e, idx) => ({
+          eval_index: idx + 1,
+          evaluation_id: e.evaluation_id,
+          jury_id: e.jury_id,
+          jury_name: e.jury_name || `Jury ${idx + 1}`,
+          innovation_score: e.innovation_score || 0,
+          relevance_score: e.relevance_score || 0,
+          technical_score: e.technical_score || 0,
+          presentation_score: e.presentation_score || 0,
+          qa_score: e.qa_score || 0,
+          total_score: e.total_score || 0,
+          max_score: 100,
+          comments: e.comments || '',
+          submitted_at: e.submitted_at || ''
+        }))
+      };
+    });
+
+    setTeamScores(fallbackScores);
+  };
 
   const loadDashboardData = () => {
     const allTeams = HackathonStateManager.getTeams();
@@ -187,13 +299,19 @@ export default function AdminDashboardPage() {
 
   const twoProblemStatementTeams = teams.filter(t => t.selected_problem_statements.length >= 2);
 
-  const filteredDeptTeams = deptFilter === 'All'
-    ? teams
-    : teams.filter(t => {
-        const lead = t.members.find(m => m.is_lead) || t.members[0];
-        const dept = (t.department || (lead ? lead.department : '') || '').toUpperCase();
-        return dept.includes(deptFilter);
-      });
+  // Filtered Scores for Admin Scores Table
+  const filteredTeamScores = teamScores.filter(s => {
+    const q = scoreSearchQuery.toLowerCase();
+    const matchesSearch = 
+      s.team_id.toLowerCase().includes(q) ||
+      s.team_name.toLowerCase().includes(q) ||
+      s.team_lead_name.toLowerCase().includes(q);
+
+    const matchesPanel = scorePanelFilter === 'All' || s.panel === scorePanelFilter;
+    const matchesStatus = scoreStatusFilter === 'All' || s.status === scoreStatusFilter;
+
+    return matchesSearch && matchesPanel && matchesStatus;
+  });
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -204,7 +322,7 @@ export default function AdminDashboardPage() {
           <div className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-1">Central Hackathon Controller</div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Admin Control Center</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Realtime verified unique team count, department & academic year analytics, problem statement distribution, and panel monitoring.
+            Realtime verified unique team count, jury score visibility, department & academic year analytics, problem statement distribution, and panel monitoring.
           </p>
         </div>
 
@@ -262,6 +380,158 @@ export default function AdminDashboardPage() {
           <div className="text-2xl font-extrabold text-amber-900">{stats.top50Selected}</div>
           <div className="text-[11px] font-extrabold text-amber-800 mt-0.5">Top 50 Selected</div>
           <div className="text-[10px] text-amber-600 font-bold mt-0.5">Finalist Roster</div>
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🚀 NEW SECTION: ADMIN TEAM SCORE VISIBILITY BOARD */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+        
+        {/* Section Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="w-6 h-6 text-brand-600" />
+              <h2 className="text-xl font-black text-slate-900">Jury Evaluation Scores & Team Visibility</h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              End-to-end visibility of actual marks submitted by Jury members across all panels. View total scores, maximum possible score, and detailed individual jury score breakdowns.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="bg-brand-50 border border-brand-100 text-brand-900 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+              <span>Completed Evaluations:</span>
+              <span className="text-sm font-black text-brand-700">
+                {teamScores.filter(s => s.status === 'Completed').length} / {teamScores.length}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters & Search Bar */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search Team ID, Team Name, or Lead..."
+              value={scoreSearchQuery}
+              onChange={(e) => setScoreSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-slate-500 font-bold">Panel:</span>
+              <select
+                value={scorePanelFilter}
+                onChange={(e) => setScorePanelFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700"
+              >
+                <option value="All">All Panels</option>
+                <option value="Panel 1">Panel 1</option>
+                <option value="Panel 2">Panel 2</option>
+                <option value="Panel 3">Panel 3</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-slate-500 font-bold">Evaluation Status:</span>
+              <select
+                value={scoreStatusFilter}
+                onChange={(e) => setScoreStatusFilter(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Completed">Completed (6/6)</option>
+                <option value="Pending">Pending / In Progress</option>
+                <option value="Not Evaluated">Not Evaluated (0/6)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Scores Table */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[460px] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 bg-slate-100 text-slate-700 font-bold uppercase tracking-wider z-10">
+                <tr className="border-b border-slate-200">
+                  <th className="py-3.5 px-4">Team ID</th>
+                  <th className="py-3.5 px-4">Team Name & Lead</th>
+                  <th className="py-3.5 px-4 text-center">Panel</th>
+                  <th className="py-3.5 px-4 text-center">Jury Evaluations</th>
+                  <th className="py-3.5 px-4 text-center">Total Score Obtained</th>
+                  <th className="py-3.5 px-4 text-center">Evaluation Status</th>
+                  <th className="py-3.5 px-4 text-right">Individual Scores</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800 font-semibold">
+                {filteredTeamScores.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
+                      No matching team evaluation scores found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTeamScores.map((scoreItem) => (
+                    <tr key={scoreItem.team_id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 font-extrabold text-brand-700">{scoreItem.team_id}</td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900">{scoreItem.team_name}</div>
+                        <div className="text-[10px] text-slate-500 font-medium">Lead: {scoreItem.team_lead_name}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-bold rounded-lg border border-slate-200">
+                          {scoreItem.panel}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="font-extrabold text-slate-800">
+                          {scoreItem.evaluations_display}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="font-black text-brand-700 text-sm">
+                          {scoreItem.total_score} <span className="text-xs text-slate-400 font-bold">/ {scoreItem.max_possible_score}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {scoreItem.status === 'Completed' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[11px] font-extrabold rounded-full border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Completed
+                          </span>
+                        ) : scoreItem.status === 'Pending' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 text-[11px] font-extrabold rounded-full border border-amber-200">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending ({scoreItem.evaluations_submitted}/{scoreItem.expected_evaluations})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full border border-slate-200">
+                            <AlertCircle className="w-3.5 h-3.5 text-slate-400" /> Not Evaluated
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            setSelectedScoreTeam(scoreItem);
+                            setIsScoreModalOpen(true);
+                          }}
+                          className="px-3.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 font-extrabold text-xs rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View Breakdown
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
       </div>
@@ -556,6 +826,125 @@ export default function AdminDashboardPage() {
                 Close View
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 🚀 MODAL: INDIVIDUAL JURY SCORES BREAKDOWN */}
+      {isScoreModalOpen && selectedScoreTeam && (
+        <Modal
+          isOpen={isScoreModalOpen}
+          onClose={() => {
+            setIsScoreModalOpen(false);
+            setSelectedScoreTeam(null);
+          }}
+          title={`Jury Score Calculation Breakdown — ${selectedScoreTeam.team_name}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
+            
+            {/* Team Overview Card */}
+            <div className="bg-slate-900 text-white p-5 rounded-2xl shadow border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-brand-300 tracking-wider">Team Information</span>
+                <h3 className="text-lg font-black text-white">{selectedScoreTeam.team_name}</h3>
+                <div className="text-xs text-slate-300 mt-0.5">
+                  ID: <span className="font-extrabold text-brand-400">{selectedScoreTeam.team_id}</span> • Lead: {selectedScoreTeam.team_lead_name} • {selectedScoreTeam.panel}
+                </div>
+              </div>
+
+              <div className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 text-center min-w-[140px]">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Total Score Obtained</div>
+                <div className="text-xl font-black text-amber-400">
+                  {selectedScoreTeam.total_score} <span className="text-xs text-slate-400">/ {selectedScoreTeam.max_possible_score}</span>
+                </div>
+                <div className="text-[10px] font-bold text-emerald-400 mt-0.5">
+                  {selectedScoreTeam.evaluations_submitted} of {selectedScoreTeam.expected_evaluations} Jury Evaluations
+                </div>
+              </div>
+            </div>
+
+            {/* Individual Jury Scores List */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Award className="w-4 h-4 text-brand-600" /> Individual Jury Score Cards ({selectedScoreTeam.individual_scores.length})
+              </h4>
+
+              {selectedScoreTeam.individual_scores.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-slate-500 text-xs">
+                  No jury evaluations submitted yet for this team.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selectedScoreTeam.individual_scores.map((ev) => (
+                    <div key={ev.evaluation_id || ev.jury_id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <div className="font-extrabold text-slate-900 text-xs flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-800 text-[11px] font-black flex items-center justify-center">
+                            {ev.eval_index}
+                          </span>
+                          {ev.jury_name} <span className="text-[10px] text-slate-400 font-medium">({ev.jury_id})</span>
+                        </div>
+                        <div className="text-xs font-black text-brand-700 bg-brand-50 px-3 py-1 rounded-lg border border-brand-200">
+                          {ev.total_score} / 100
+                        </div>
+                      </div>
+
+                      {/* Criteria Score Grid */}
+                      <div className="grid grid-cols-5 gap-2 text-center text-[10px]">
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="text-slate-500 font-bold">Innovation</div>
+                          <div className="font-black text-slate-800 text-xs mt-0.5">{ev.innovation_score} / 20</div>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="text-slate-500 font-bold">Relevance</div>
+                          <div className="font-black text-slate-800 text-xs mt-0.5">{ev.relevance_score} / 20</div>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="text-slate-500 font-bold">Technical</div>
+                          <div className="font-black text-slate-800 text-xs mt-0.5">{ev.technical_score} / 20</div>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="text-slate-500 font-bold">Presentation</div>
+                          <div className="font-black text-slate-800 text-xs mt-0.5">{ev.presentation_score} / 20</div>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <div className="text-slate-500 font-bold">Q&A Response</div>
+                          <div className="font-black text-slate-800 text-xs mt-0.5">{ev.qa_score} / 20</div>
+                        </div>
+                      </div>
+
+                      {ev.comments && (
+                        <div className="text-[11px] bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 text-amber-900 italic">
+                          "{ev.comments}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Summary Total */}
+                  <div className="p-4 bg-slate-100 rounded-xl border border-slate-200 flex justify-between items-center font-bold text-xs">
+                    <span className="text-slate-700">Accumulated Total Score across Juries:</span>
+                    <span className="text-sm font-black text-slate-900">
+                      {selectedScoreTeam.total_score} / {selectedScoreTeam.max_possible_score}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  setIsScoreModalOpen(false);
+                  setSelectedScoreTeam(null);
+                }}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer shadow transition-all"
+              >
+                Close Score Details
+              </button>
+            </div>
+
           </div>
         </Modal>
       )}
