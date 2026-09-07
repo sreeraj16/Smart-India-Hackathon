@@ -33,6 +33,13 @@ export default function AdminTeamDetailPage() {
   const [evalJuryName, setEvalJuryName] = useState<string>('Admin Controller');
   const [isSubmittingEval, setIsSubmittingEval] = useState(false);
 
+  const [scoreSummary, setScoreSummary] = useState<{
+    totalScore: number;
+    maxScore: number | null;
+    display: string;
+    status: 'Completed' | 'Pending' | 'Not Evaluated';
+  } | null>(null);
+
   useEffect(() => {
     if (teamId) {
       const loadedTeam = HackathonStateManager.getTeamById(teamId);
@@ -53,6 +60,22 @@ export default function AdminTeamDetailPage() {
         }
       };
       fetchEvals();
+
+      // Fetch dynamic score summary from API
+      fetch(`/api/admin/scores?team_id=${teamId}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success && json.scores && json.scores.length > 0) {
+            const s = json.scores[0];
+            setScoreSummary({
+              totalScore: s.total_score,
+              maxScore: s.max_possible_score,
+              display: s.evaluations_display,
+              status: s.status
+            });
+          }
+        })
+        .catch(err => console.warn('Failed to fetch score summary from API:', err));
     }
   }, [teamId]);
 
@@ -202,20 +225,22 @@ export default function AdminTeamDetailPage() {
           <div className="text-right">
             <div className="text-[11px] font-bold text-slate-400 uppercase">Jury Accumulated Score</div>
             <div className="text-2xl font-extrabold text-emerald-600">
-              {(() => {
-                const totalAccum = evaluations.reduce((sum, ev) => sum + ev.total_score, 0);
-                const expectedCount = 6;
-                const maxPossible = expectedCount * 100;
-                return evaluations.length > 0 ? `${totalAccum} / ${maxPossible}` : 'Not Evaluated Yet';
-              })()}
+              {evaluations.length > 0 ? (
+                <>
+                  {evaluations.reduce((sum, ev) => sum + (ev.total_score || 0), 0)}
+                  {scoreSummary?.maxScore ? <span className="text-sm font-bold text-slate-400"> / {scoreSummary.maxScore}</span> : ''}
+                </>
+              ) : (
+                'Not Evaluated Yet'
+              )}
             </div>
             <div className="text-[11px] font-extrabold mt-0.5">
               <span className={`inline-block px-2.5 py-0.5 rounded-full ${
-                evaluations.length >= 6 || team.completed_at ? 'bg-emerald-100 text-emerald-800' :
+                (scoreSummary?.status === 'Completed' || team.completed_at) ? 'bg-emerald-100 text-emerald-800' :
                 evaluations.length > 0 ? 'bg-amber-100 text-amber-800' :
                 'bg-slate-100 text-slate-600'
               }`}>
-                {evaluations.length} / 6 Evaluations • {evaluations.length >= 6 || team.completed_at ? 'Completed' : evaluations.length > 0 ? 'Pending' : 'Not Evaluated'}
+                {scoreSummary?.display || `${evaluations.length} Evaluation${evaluations.length === 1 ? '' : 's'}`} • {scoreSummary?.status || (evaluations.length > 0 ? 'Pending' : 'Not Evaluated')}
               </span>
             </div>
           </div>

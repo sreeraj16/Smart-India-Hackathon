@@ -32,10 +32,10 @@ interface TeamScoreItem {
   team_lead_name: string;
   panel: string;
   evaluations_submitted: number;
-  expected_evaluations: number;
+  expected_evaluations: number | null;
   evaluations_display: string;
   total_score: number;
-  max_possible_score: number;
+  max_possible_score: number | null;
   status: 'Completed' | 'Pending' | 'Not Evaluated';
   individual_scores: Array<{
     eval_index: number;
@@ -106,10 +106,10 @@ export default function AdminDashboardPage() {
         }
       }
     } catch (err) {
-      console.warn('API score fetch failed, utilizing state manager fallback:', err);
+      console.warn('API score fetch failed, utilizing dynamic state manager fallback:', err);
     }
 
-    // Fallback sync calculation from local store and state manager
+    // Dynamic Fallback calculation from local store and state manager
     const allTeams = HackathonStateManager.getTeams();
     const allEvals = HackathonStateManager.getEvaluations();
 
@@ -121,14 +121,20 @@ export default function AdminDashboardPage() {
 
     const fallbackScores: TeamScoreItem[] = allTeams.map(t => {
       const evs = evalsByTeam[t.team_id] || [];
-      const submittedCount = evs.length;
-      const expectedCount = 6;
-      const totalScore = evs.reduce((acc, curr) => acc + (curr.total_score || 0), 0);
-      const maxPossibleScore = expectedCount * 100;
+      const uniqueMap = new Map();
+      evs.forEach(e => uniqueMap.set(e.jury_id || e.evaluation_id, e));
+      const uniqueEvals = Array.from(uniqueMap.values());
+
+      const submittedCount = uniqueEvals.length;
+      const totalScore = uniqueEvals.reduce((acc, curr) => acc + (curr.total_score || 0), 0);
+
+      const expectedCount = null;
+      const maxPossibleScore = null;
+      const evaluationsDisplay = `${submittedCount} Evaluation${submittedCount === 1 ? '' : 's'}`;
 
       let status: 'Completed' | 'Pending' | 'Not Evaluated' = 'Not Evaluated';
       if (submittedCount === 0) status = 'Not Evaluated';
-      else if (submittedCount >= expectedCount || t.completed_at) status = 'Completed';
+      else if (t.completed_at) status = 'Completed';
       else status = 'Pending';
 
       return {
@@ -138,11 +144,11 @@ export default function AdminDashboardPage() {
         panel: t.panel || 'Panel 1',
         evaluations_submitted: submittedCount,
         expected_evaluations: expectedCount,
-        evaluations_display: `${submittedCount} / ${expectedCount}`,
+        evaluations_display: evaluationsDisplay,
         total_score: totalScore,
         max_possible_score: maxPossibleScore,
         status,
-        individual_scores: evs.map((e, idx) => ({
+        individual_scores: uniqueEvals.map((e, idx) => ({
           eval_index: idx + 1,
           evaluation_id: e.evaluation_id,
           jury_id: e.jury_id,
@@ -385,7 +391,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🚀 NEW SECTION: ADMIN TEAM SCORE VISIBILITY BOARD */}
+      {/* 🚀 ADMIN TEAM SCORE VISIBILITY BOARD (DYNAMIC EVALUATION COUNT) */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
         
@@ -403,9 +409,9 @@ export default function AdminDashboardPage() {
 
           <div className="flex items-center gap-3">
             <div className="bg-brand-50 border border-brand-100 text-brand-900 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-              <span>Completed Evaluations:</span>
+              <span>Teams Evaluated:</span>
               <span className="text-sm font-black text-brand-700">
-                {teamScores.filter(s => s.status === 'Completed').length} / {teamScores.length}
+                {teamScores.filter(s => s.evaluations_submitted > 0).length} / {teamScores.length}
               </span>
             </div>
           </div>
@@ -447,9 +453,9 @@ export default function AdminDashboardPage() {
                 className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700"
               >
                 <option value="All">All Statuses</option>
-                <option value="Completed">Completed (6/6)</option>
+                <option value="Completed">Completed</option>
                 <option value="Pending">Pending / In Progress</option>
-                <option value="Not Evaluated">Not Evaluated (0/6)</option>
+                <option value="Not Evaluated">Not Evaluated</option>
               </select>
             </div>
           </div>
@@ -497,7 +503,10 @@ export default function AdminDashboardPage() {
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <div className="font-black text-brand-700 text-sm">
-                          {scoreItem.total_score} <span className="text-xs text-slate-400 font-bold">/ {scoreItem.max_possible_score}</span>
+                          {scoreItem.total_score}
+                          {scoreItem.max_possible_score !== null && (
+                            <span className="text-xs text-slate-400 font-bold"> / {scoreItem.max_possible_score}</span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -507,7 +516,7 @@ export default function AdminDashboardPage() {
                           </span>
                         ) : scoreItem.status === 'Pending' ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 text-[11px] font-extrabold rounded-full border border-amber-200">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending ({scoreItem.evaluations_submitted}/{scoreItem.expected_evaluations})
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending ({scoreItem.evaluations_display})
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-full border border-slate-200">
@@ -856,10 +865,13 @@ export default function AdminDashboardPage() {
               <div className="bg-slate-800 p-3.5 rounded-xl border border-slate-700 text-center min-w-[140px]">
                 <div className="text-[10px] uppercase font-bold text-slate-400">Total Score Obtained</div>
                 <div className="text-xl font-black text-amber-400">
-                  {selectedScoreTeam.total_score} <span className="text-xs text-slate-400">/ {selectedScoreTeam.max_possible_score}</span>
+                  {selectedScoreTeam.total_score}
+                  {selectedScoreTeam.max_possible_score !== null && (
+                    <span className="text-xs text-slate-400"> / {selectedScoreTeam.max_possible_score}</span>
+                  )}
                 </div>
                 <div className="text-[10px] font-bold text-emerald-400 mt-0.5">
-                  {selectedScoreTeam.evaluations_submitted} of {selectedScoreTeam.expected_evaluations} Jury Evaluations
+                  {selectedScoreTeam.evaluations_display} Submitted
                 </div>
               </div>
             </div>
@@ -926,7 +938,10 @@ export default function AdminDashboardPage() {
                   <div className="p-4 bg-slate-100 rounded-xl border border-slate-200 flex justify-between items-center font-bold text-xs">
                     <span className="text-slate-700">Accumulated Total Score across Juries:</span>
                     <span className="text-sm font-black text-slate-900">
-                      {selectedScoreTeam.total_score} / {selectedScoreTeam.max_possible_score}
+                      {selectedScoreTeam.total_score}
+                      {selectedScoreTeam.max_possible_score !== null && (
+                        <span> / {selectedScoreTeam.max_possible_score}</span>
+                      )}
                     </span>
                   </div>
                 </div>

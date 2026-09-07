@@ -13,7 +13,6 @@ export async function GET(req: Request) {
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
     const session = verifySessionToken(token);
 
-    // Check header or query auth bypass for local state manager sync if needed
     const url = new URL(req.url);
     const teamIdFilter = url.searchParams.get('team_id');
     const authHeader = req.headers.get('x-admin-auth');
@@ -28,30 +27,21 @@ export async function GET(req: Request) {
       }, { status: 401 });
     }
 
-    // 1. Fetch all teams from Supabase
-    let teamsQuery = supabase
-      .from('teams')
-      .select(`
-        team_id,
-        team_name,
-        panel,
-        completed_at,
-        presentation_completed,
-        team_members (name, is_lead, email)
-      `);
-
+    // 1. Fetch teams
+    let teamsQuery = supabase.from('teams').select('*');
     if (teamIdFilter) {
       teamsQuery = teamsQuery.eq('team_id', teamIdFilter);
     }
-
     const { data: teamsData, error: teamsErr } = await teamsQuery;
-
     if (teamsErr) {
       console.error('Error fetching teams for scores API:', teamsErr);
       return NextResponse.json({ success: false, error: 'Database query error fetching teams.' }, { status: 500 });
     }
 
-    // 2. Fetch all jury evaluations from Supabase
+    // 2. Fetch team members
+    const { data: membersData } = await supabase.from('team_members').select('*');
+
+    // 3. Fetch all jury evaluations from Supabase
     const { data: evalsData, error: evalsErr } = await supabase
       .from('jury_evaluations')
       .select('*')
@@ -62,7 +52,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'Database query error fetching evaluations.' }, { status: 500 });
     }
 
-    // 3. Fetch jury profiles to determine expected juries per panel
+    // 4. Fetch jury profiles to determine expected juries per panel dynamically from DB
     const { data: juryProfiles } = await supabase
       .from('profiles')
       .select('user_id, jury_id, panel')
@@ -71,11 +61,20 @@ export async function GET(req: Request) {
     // Group jury profiles by panel
     const panelJuriesCountMap: Record<string, number> = {};
     (juryProfiles || []).forEach(j => {
-      const p = j.panel || 'Panel 1';
-      panelJuriesCountMap[p] = (panelJuriesCountMap[p] || 0) + 1;
+      const p = j.panel || '';
+      if (p) {
+        panelJuriesCountMap[p] = (panelJuriesCountMap[p] || 0) + 1;
+      }
     });
 
-    // Group evaluations by team_id
+    // Group members by team_id
+    const membersByTeam: Record<string, any[]> = {};
+    (membersData || []).forEach(m => {
+      if (!membersByTeam[m.team_id]) membersByTeam[m.team_id] = [];
+      membersByTeam[m.team_id].push(m);
+    });
+
+    // Group evaluations by team_id and deduplicate by jury_id
     const teamEvalsMap: Record<string, any[]> = {};
     (evalsData || []).forEach(e => {
       if (!teamEvalsMap[e.team_id]) {
@@ -84,38 +83,56 @@ export async function GET(req: Request) {
       teamEvalsMap[e.team_id].push(e);
     });
 
-    // 4. Compute team score summary objects
+    // 5. Compute team score summary objects dynamically
     const teamScores = (teamsData || []).map(t => {
       const teamId = t.team_id;
       const teamName = t.team_name;
       const panel = t.panel || 'Panel 1';
 
-      const members = t.team_members || [];
-      const leadMember = Array.isArray(members) ? (members.find((m: any) => m.is_lead) || members[0]) : null;
-      const teamLeadName = leadMember ? leadMember.name : 'Unknown';
+      const members = membersByTeam[teamId] || [];
+      const leadMember = members.find((m: any) => m.is_lead) || members[0];
+      const teamLeadName = leadMember ? leadMember.name : (t.completed_by || 'Unknown');
 
-      const evals = teamEvalsMap[teamId] || [];
-      const submittedCount = evals.length;
+      const rawEvals = teamEvalsMap[teamId] || [];
+      
+      // Deduplicate evaluations by unique jury_id per team
+      const uniqueEvalsMap = new Map<string, any>();
+      rawEvals.forEach(ev => {
+        const jId = ev.jury_id || ev.evaluation_id;
+        uniqueEvalsMap.set(jId, ev);
+      });
+      const uniqueEvals = Array.from(uniqueEvalsMap.values());
+      const submittedCount = uniqueEvals.length;
 
-      // Determine expected juries count for team's panel
-      const expectedFromPanel = panelJuriesCountMap[panel] || 0;
-      // Default to 6 juries per panel if not explicitly defined in profiles, or max(expected, submitted)
-      const expectedCount = expectedFromPanel > 0 ? Math.max(expectedFromPanel, submittedCount) : Math.max(6, submittedCount);
+      // Determine expected juries count dynamically from DB panel assignments
+      const panelJuryCount = panelJuriesCountMap[panel] || 0;
+      let expectedCount: number | null = null;
 
-      // Sum submitted scores
-      const totalScore = evals.reduce((sum, ev) => sum + (Number(ev.total_score) || 0), 0);
-      const maxPossibleScore = expectedCount * 100;
+      if (panelJuryCount > 0) {
+        expectedCount = Math.max(panelJuryCount, submittedCount);
+      }
+
+      // Sum actual submitted scores
+      const totalScore = uniqueEvals.reduce((sum, ev) => sum + (Number(ev.total_score) || 0), 0);
+      const maxPossibleScore = expectedCount !== null ? expectedCount * 100 : null;
+
+      let evaluationsDisplay = '';
+      if (expectedCount !== null) {
+        evaluationsDisplay = `${submittedCount} / ${expectedCount}`;
+      } else {
+        evaluationsDisplay = `${submittedCount} Evaluation${submittedCount === 1 ? '' : 's'}`;
+      }
 
       let status: 'Completed' | 'Pending' | 'Not Evaluated' = 'Not Evaluated';
       if (submittedCount === 0) {
         status = 'Not Evaluated';
-      } else if (submittedCount >= expectedCount || t.completed_at) {
+      } else if (expectedCount !== null && submittedCount >= expectedCount || t.completed_at) {
         status = 'Completed';
       } else {
         status = 'Pending';
       }
 
-      const individualScores = evals.map((ev, index) => ({
+      const individualScores = uniqueEvals.map((ev, index) => ({
         eval_index: index + 1,
         evaluation_id: ev.evaluation_id,
         jury_id: ev.jury_id,
@@ -138,7 +155,7 @@ export async function GET(req: Request) {
         panel: panel,
         evaluations_submitted: submittedCount,
         expected_evaluations: expectedCount,
-        evaluations_display: `${submittedCount} / ${expectedCount}`,
+        evaluations_display: evaluationsDisplay,
         total_score: totalScore,
         max_possible_score: maxPossibleScore,
         status: status,

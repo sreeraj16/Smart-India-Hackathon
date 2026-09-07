@@ -27,9 +27,10 @@ import {
 
 interface ScoreSummary {
   totalScore: number;
-  maxScore: number;
+  maxScore: number | null;
   submitted: number;
-  expected: number;
+  expected: number | null;
+  display: string;
   status: 'Completed' | 'Pending' | 'Not Evaluated';
 }
 
@@ -58,11 +59,36 @@ export default function AdminTeamsPage() {
     };
   }, []);
 
-  const loadTeams = () => {
+  const loadTeams = async () => {
     const allTeams = HackathonStateManager.getTeams();
     setTeams(allTeams);
 
-    // Build Jury Evaluation Scores Map for teams directory
+    // Try fetching dynamic score summaries from backend API
+    try {
+      const res = await fetch('/api/admin/scores');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.scores)) {
+          const sMap: Record<string, ScoreSummary> = {};
+          json.scores.forEach((s: any) => {
+            sMap[s.team_id] = {
+              totalScore: s.total_score,
+              maxScore: s.max_possible_score,
+              submitted: s.evaluations_submitted,
+              expected: s.expected_evaluations,
+              display: s.evaluations_display,
+              status: s.status
+            };
+          });
+          setScoresMap(sMap);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('API fetch failed in teams page, using dynamic fallback:', err);
+    }
+
+    // Dynamic fallback calculation without hardcoded expected count
     const evals = HackathonStateManager.getEvaluations();
     const evalsByTeam: Record<string, any[]> = {};
     evals.forEach(e => {
@@ -73,17 +99,22 @@ export default function AdminTeamsPage() {
     const sMap: Record<string, ScoreSummary> = {};
     allTeams.forEach(t => {
       const teamEvals = evalsByTeam[t.team_id] || [];
-      const submitted = teamEvals.length;
-      const expected = 6;
-      const totalScore = teamEvals.reduce((sum, ev) => sum + (ev.total_score || 0), 0);
-      const maxScore = expected * 100;
-      
+      const uniqueMap = new Map();
+      teamEvals.forEach(e => uniqueMap.set(e.jury_id || e.evaluation_id, e));
+      const uniqueEvals = Array.from(uniqueMap.values());
+
+      const submitted = uniqueEvals.length;
+      const expected = null;
+      const totalScore = uniqueEvals.reduce((sum, ev) => sum + (ev.total_score || 0), 0);
+      const maxScore = expected !== null ? expected * 100 : null;
+      const display = expected !== null ? `${submitted} / ${expected}` : `${submitted} Eval${submitted === 1 ? '' : 's'}`;
+
       let status: 'Completed' | 'Pending' | 'Not Evaluated' = 'Not Evaluated';
       if (submitted === 0) status = 'Not Evaluated';
-      else if (submitted >= expected || t.completed_at) status = 'Completed';
+      else if (t.completed_at) status = 'Completed';
       else status = 'Pending';
 
-      sMap[t.team_id] = { totalScore, maxScore, submitted, expected, status };
+      sMap[t.team_id] = { totalScore, maxScore, submitted, expected, display, status };
     });
     setScoresMap(sMap);
   };
@@ -181,9 +212,9 @@ export default function AdminTeamsPage() {
               className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
             >
               <option value="All">All Jury Scores</option>
-              <option value="Completed">Completed (6/6)</option>
+              <option value="Completed">Completed</option>
               <option value="Pending">Pending Evaluation</option>
-              <option value="Not Evaluated">Not Evaluated (0/6)</option>
+              <option value="Not Evaluated">Not Evaluated</option>
             </select>
           </div>
 
@@ -313,9 +344,12 @@ export default function AdminTeamsPage() {
                         {scoreInfo ? (
                           <div className="space-y-0.5">
                             <div className="font-black text-brand-700">
-                              {scoreInfo.totalScore} <span className="text-[10px] text-slate-400 font-bold">/ {scoreInfo.maxScore}</span>
+                              {scoreInfo.totalScore}
+                              {scoreInfo.maxScore !== null && (
+                                <span className="text-[10px] text-slate-400 font-bold"> / {scoreInfo.maxScore}</span>
+                              )}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-semibold">{scoreInfo.submitted}/{scoreInfo.expected} Evals</div>
+                            <div className="text-[10px] text-slate-500 font-semibold">{scoreInfo.display}</div>
                             <span className={`inline-block px-2 py-0.5 text-[9px] font-extrabold rounded-full ${
                               scoreInfo.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
                               scoreInfo.status === 'Pending' ? 'bg-amber-100 text-amber-800' :
