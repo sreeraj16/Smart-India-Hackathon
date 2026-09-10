@@ -8,12 +8,12 @@ import { UserProfile, UserRole, Team } from '@/lib/types';
 import { Rocket, ShieldCheck, Cpu, Users, Award, FileText, ArrowRight, CheckCircle, Loader2, Trophy, Search, User, Layers, X, Sparkles, Upload, FileSpreadsheet, Lock, Trash2 } from 'lucide-react';
 import Top50UploadModal from '@/components/Top50UploadModal';
 import { Modal } from '@/components/ui/Modal';
+import top50Data from '@/lib/data/top50.json';
 
 export default function LandingPage() {
   const [stats, setStats] = useState({ teamsCount: 0, psCount: 0, pptsCount: 0 });
-  const [selectedTeams, setSelectedTeams] = useState<Team[]>([]);
+  const [selectedTeams, setSelectedTeams] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Software' | 'Hardware'>('all');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [adminAuthModalOpen, setAdminAuthModalOpen] = useState(false);
@@ -29,13 +29,53 @@ export default function LandingPage() {
       const teams = HackathonStateManager.getTeams();
       const ps = HackathonStateManager.getProblemStatements();
       const ppts = teams.filter(t => t.ppt_submission).length;
-      const selected = HackathonStateManager.getSelectedTeams();
       setStats({
         teamsCount: teams.length,
         psCount: ps.length,
         pptsCount: ppts
       });
-      setSelectedTeams(selected);
+
+      const overrides = HackathonStateManager.getTop50Overrides();
+      const combinedSelected: any[] = [];
+      
+      top50Data.forEach((item: any) => {
+        const override = overrides[item.id];
+        if (override && override.selected === false) {
+           return;
+        }
+        
+        combinedSelected.push({
+           team_id: item.id,
+           team_name: override?.team_name || item.team_name,
+           team_lead_name: override?.team_lead_name || item.team_lead_name,
+           selected_problem_statements: [
+              {
+                problem_id: override?.problem_id || item.problem_id,
+                problem_title: override?.problem_title || 'Selected Problem Statement',
+                category: undefined,
+              }
+           ]
+        });
+      });
+
+      Object.entries(overrides).forEach(([teamId, ov]) => {
+         if (ov.selected === true && !top50Data.some((t: any) => t.id === teamId)) {
+            combinedSelected.push({
+               team_id: teamId,
+               team_name: ov.team_name || 'Unknown Team',
+               team_lead_name: ov.team_lead_name || 'Team Lead',
+               selected_problem_statements: [
+                  {
+                    problem_id: ov.problem_id || 'Unknown',
+                    problem_title: ov.problem_title || 'Selected Problem Statement',
+                    category: undefined,
+                  }
+               ]
+            });
+         }
+      });
+
+      setSelectedTeams(combinedSelected);
     };
 
     loadData();
@@ -183,17 +223,14 @@ export default function LandingPage() {
     const matchesQuery = !q || (
       team.team_name.toLowerCase().includes(q) ||
       (team.team_lead_name || '').toLowerCase().includes(q) ||
-      (team.members && team.members.some(m => (m.name || '').toLowerCase().includes(q))) ||
-      (team.selected_problem_statements && team.selected_problem_statements.some(ps =>
+      (team.members && team.members.some((m: any) => (m.name || '').toLowerCase().includes(q))) ||
+      (team.selected_problem_statements && team.selected_problem_statements.some((ps: any) =>
         (ps.problem_id || '').toLowerCase().includes(q) ||
         (ps.problem_title || '').toLowerCase().includes(q)
       ))
     );
 
-    const matchesCategory = categoryFilter === 'all' ||
-      (team.selected_problem_statements && team.selected_problem_statements.some(ps => ps.category === categoryFilter));
-
-    return matchesQuery && matchesCategory;
+    return matchesQuery;
   });
 
   return (
@@ -396,28 +433,6 @@ export default function LandingPage() {
                 </button>
               )}
             </div>
-
-            {/* Category Filter Buttons */}
-            <div className="flex items-center gap-2 self-center sm:self-auto">
-              <button
-                onClick={() => setCategoryFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${categoryFilter === 'all' ? 'bg-brand-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-              >
-                All Categories
-              </button>
-              <button
-                onClick={() => setCategoryFilter('Software')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${categoryFilter === 'Software' ? 'bg-brand-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-              >
-                Software
-              </button>
-              <button
-                onClick={() => setCategoryFilter('Hardware')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${categoryFilter === 'Hardware' ? 'bg-brand-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-              >
-                Hardware
-              </button>
-            </div>
           </div>
 
           {/* Teams Counter */}
@@ -517,7 +532,7 @@ export default function LandingPage() {
                     No selected teams matched your search for &ldquo;{searchQuery}&rdquo;.
                   </p>
                   <button
-                    onClick={() => { setSearchQuery(''); setCategoryFilter('all'); }}
+                    onClick={() => { setSearchQuery(''); }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition-colors shadow-sm"
                   >
                     Clear Filters
@@ -627,7 +642,7 @@ export default function LandingPage() {
         onClose={() => setUploadModalOpen(false)}
         adminEmail={currentUser?.email || 'vasuch9959@rguktn.ac.in'}
         onSuccess={() => {
-          setSelectedTeams(HackathonStateManager.getSelectedTeams());
+          loadData();
         }}
       />
 
