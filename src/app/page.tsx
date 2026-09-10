@@ -5,13 +5,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HackathonStateManager } from '@/lib/store/stateManager';
 import { UserProfile, UserRole, Team } from '@/lib/types';
-import { Rocket, ShieldCheck, Cpu, Users, Award, FileText, ArrowRight, CheckCircle, Loader2, Trophy, Search, User, Layers, X, Sparkles } from 'lucide-react';
+import { Rocket, ShieldCheck, Cpu, Users, Award, FileText, ArrowRight, CheckCircle, Loader2, Trophy, Search, User, Layers, X, Sparkles, Upload, FileSpreadsheet, Lock, Trash2 } from 'lucide-react';
+import Top50UploadModal from '@/components/Top50UploadModal';
+import { Modal } from '@/components/ui/Modal';
 
 export default function LandingPage() {
   const [stats, setStats] = useState({ teamsCount: 0, psCount: 0, pptsCount: 0 });
   const [selectedTeams, setSelectedTeams] = useState<Team[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'Software' | 'Hardware'>('all');
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [adminAuthModalOpen, setAdminAuthModalOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminAuthLoading, setAdminAuthLoading] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState('');
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthStatus, setOauthStatus] = useState('');
   const router = useRouter();
@@ -31,15 +39,21 @@ export default function LandingPage() {
     };
 
     loadData();
+    setCurrentUser(HackathonStateManager.getCurrentUser());
 
     // Sync from Supabase first
     HackathonStateManager.syncFromSupabase().then(() => {
       loadData();
+      setCurrentUser(HackathonStateManager.getCurrentUser());
     });
 
     const handleUpdate = () => loadData();
+    const handleAuthChange = () => {
+      setCurrentUser(HackathonStateManager.getCurrentUser());
+    };
     window.addEventListener('sih_results_updated', handleUpdate);
     window.addEventListener('sih_teams_updated', handleUpdate);
+    window.addEventListener('sih_auth_changed', handleAuthChange);
 
     // Check if returning from Google OAuth redirect with ?code=...
     if (typeof window !== 'undefined') {
@@ -130,8 +144,39 @@ export default function LandingPage() {
     return () => {
       window.removeEventListener('sih_results_updated', handleUpdate);
       window.removeEventListener('sih_teams_updated', handleUpdate);
+      window.removeEventListener('sih_auth_changed', handleAuthChange);
     };
   }, [router]);
+
+  const isVasuAdmin = currentUser?.role === 'admin' && ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes((currentUser?.email || '').trim().toLowerCase());
+
+  const handleAdminAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminAuthError('');
+    setAdminAuthLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'vasuch9959@rguktn.ac.in', password: adminPassword })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        HackathonStateManager.setCurrentUser(data.user);
+        setCurrentUser(data.user);
+        setAdminAuthModalOpen(false);
+        setAdminPassword('');
+        setUploadModalOpen(true);
+      } else {
+        setAdminAuthError(data.error || 'Incorrect admin password.');
+      }
+    } catch {
+      setAdminAuthError('Authentication request failed. Please try again.');
+    } finally {
+      setAdminAuthLoading(false);
+    }
+  };
 
   const filteredTeams = selectedTeams.filter(team => {
     const q = searchQuery.toLowerCase().trim();
@@ -272,6 +317,63 @@ export default function LandingPage() {
               Teams are displayed in unranked order
             </div>
           </div>
+
+          {/* Admin Control Bar for vasuch9959@rguktn.ac.in */}
+          {isVasuAdmin ? (
+            <div className="mb-8 p-4 sm:p-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-extrabold text-amber-950 flex items-center gap-2">
+                    Admin Tools: {currentUser?.email}
+                    <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                      Super Admin
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-800/80 mt-0.5">
+                    Upload an Excel file (.xlsx / .xls) containing Top 50 teams to update the selection list live on the home page.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setUploadModalOpen(true)}
+                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload Top 50 Excel
+                </button>
+                {selectedTeams.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to clear the current selected teams list?')) {
+                        await HackathonStateManager.clearTop50Overrides(currentUser?.email);
+                      }
+                    }}
+                    className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                    title="Clear Selection List"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end mb-4">
+              <button
+                type="button"
+                onClick={() => setAdminAuthModalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-700 bg-slate-100/70 hover:bg-amber-50 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-amber-200 transition-all font-medium cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                Admin Excel Upload (vasuch9959@rguktn.ac.in)
+              </button>
+            </div>
+          )}
 
           {/* Search & Filter Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
@@ -556,6 +658,69 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Top 50 Excel Upload Modal */}
+      <Top50UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        adminEmail={currentUser?.email || 'vasuch9959@rguktn.ac.in'}
+        onSuccess={() => {
+          setSelectedTeams(HackathonStateManager.getSelectedTeams());
+        }}
+      />
+
+      {/* Quick Admin Auth Modal for vasuch9959@rguktn.ac.in */}
+      <Modal
+        isOpen={adminAuthModalOpen}
+        onClose={() => { setAdminAuthModalOpen(false); setAdminAuthError(''); setAdminPassword(''); }}
+        title="Admin Authentication"
+        maxWidth="sm"
+      >
+        <form onSubmit={handleAdminAuthSubmit} className="space-y-4">
+          <div className="text-xs text-slate-600">
+            Sign in as <strong className="text-slate-900">vasuch9959@rguktn.ac.in</strong> to upload the Top 50 Excel sheet.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Admin Password
+            </label>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={e => setAdminPassword(e.target.value)}
+              placeholder="Enter admin password"
+              required
+              autoFocus
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+            />
+          </div>
+
+          {adminAuthError && (
+            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+              {adminAuthError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => { setAdminAuthModalOpen(false); setAdminAuthError(''); setAdminPassword(''); }}
+              className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={adminAuthLoading || !adminPassword}
+              className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-all flex items-center gap-1.5"
+            >
+              {adminAuthLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Sign In & Upload
+            </button>
+          </div>
+        </form>
+      </Modal>
 
     </div>
   );

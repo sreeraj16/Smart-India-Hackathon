@@ -1,5 +1,6 @@
 import { Team, ProblemStatement, PresentationSession, JuryEvaluation, AuditLog, UserProfile, PPTSubmission } from '../types';
 import { INITIAL_PROBLEM_STATEMENTS, INITIAL_TEAMS, INITIAL_EVALUATIONS, INITIAL_AUDIT_LOGS } from './hackathonStore';
+import { ParsedTop50Team } from '../utils/top50ImportUtils';
 
 const STORAGE_KEYS = {
   TEAMS: 'sih_2026_teams',
@@ -507,6 +508,167 @@ export class HackathonStateManager {
       new_value: selected ? 'Selected' : 'Not Selected',
       reason: reason
     });
+  }
+
+  static async importTop50TeamsFromExcel(
+    parsedTeams: ParsedTop50Team[],
+    replaceExisting: boolean = true,
+    adminEmail?: string
+  ): Promise<{ success: boolean; count: number; error?: string }> {
+    const currentUser = this.getCurrentUser();
+    const effectiveEmail = (adminEmail || currentUser?.email || '').trim().toLowerCase();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(effectiveEmail);
+
+    if (!isAuthorizedAdmin) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Unauthorized: Only vasuch9959@rguktn.ac.in or authorized admin can import Top 50 results.'
+      };
+    }
+
+    if (!parsedTeams || parsedTeams.length === 0) {
+      return { success: false, count: 0, error: 'No team data provided to import.' };
+    }
+
+    const currentTeams = [...this.getTeams()];
+    const currentOverrides: Record<string, { selected: boolean; reason: string }> = replaceExisting
+      ? {}
+      : { ...this.getTop50Overrides() };
+
+    const matchedIds: string[] = [];
+
+    for (let i = 0; i < parsedTeams.length; i++) {
+      const p = parsedTeams[i];
+      const normalizedName = p.team_name.trim().toLowerCase();
+      const normalizedId = (p.team_id || '').trim().toLowerCase();
+
+      // Find matching existing team
+      let matchedTeam = currentTeams.find(t => 
+        (normalizedId && t.team_id.toLowerCase() === normalizedId) ||
+        (t.team_name.trim().toLowerCase() === normalizedName)
+      );
+
+      let targetTeamId = matchedTeam?.team_id;
+
+      if (matchedTeam) {
+        if (p.problem_id && (!matchedTeam.selected_problem_statements || matchedTeam.selected_problem_statements.length === 0)) {
+          matchedTeam.selected_problem_statements = [{
+            problem_id: p.problem_id,
+            problem_title: p.problem_title || 'Selected Problem Statement',
+            description: p.problem_title || '',
+            category: p.category || 'Software',
+            domain: p.domain || 'General'
+          }];
+        }
+        if (p.team_lead_name && !matchedTeam.team_lead_name) {
+          matchedTeam.team_lead_name = p.team_lead_name;
+        }
+      } else {
+        targetTeamId = p.team_id || `${p.team_name.replace(/[^a-zA-Z0-9]/g, '_')}_TOP50_${Date.now()}_${i}`;
+        const newTeam: Team = {
+          team_id: targetTeamId,
+          team_name: p.team_name,
+          team_lead_id: `lead-${targetTeamId}`,
+          team_lead_name: p.team_lead_name || 'Team Lead',
+          team_lead_email: p.team_lead_email || '',
+          team_lead_phone: p.team_lead_phone || '',
+          department: p.department || 'CSE',
+          year: p.year || 'E3',
+          college: 'RGUKT Nuzvid',
+          registration_status: 'registered',
+          members: [
+            {
+              name: p.team_lead_name || 'Team Lead',
+              id_number: '',
+              email: p.team_lead_email || '',
+              phone: p.team_lead_phone || '',
+              department: p.department || 'CSE',
+              year: p.year || 'E3',
+              is_lead: true
+            }
+          ],
+          selected_problem_statements: p.problem_id ? [
+            {
+              problem_id: p.problem_id,
+              problem_title: p.problem_title || 'Selected Problem Statement',
+              description: p.problem_title || '',
+              category: p.category || 'Software',
+              domain: p.domain || 'General'
+            }
+          ] : [],
+          created_at: new Date().toISOString()
+        };
+        currentTeams.push(newTeam);
+      }
+
+      if (targetTeamId) {
+        currentOverrides[targetTeamId] = {
+          selected: true,
+          reason: `Uploaded via Top 50 Excel by ${effectiveEmail}`
+        };
+        matchedIds.push(targetTeamId);
+      }
+    }
+
+    if (this.isBrowser()) {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(currentTeams));
+      localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(currentOverrides));
+
+      window.dispatchEvent(new Event('sih_teams_updated'));
+      window.dispatchEvent(new Event('sih_results_updated'));
+
+      // Sync into Supabase in background
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        const rows = matchedIds.map(id => ({
+          team_id: id,
+          selected: true,
+          admin_override: true,
+          override_reason: `Uploaded via Top 50 Excel by ${effectiveEmail}`,
+          updated_at: new Date().toISOString()
+        }));
+
+        if (rows.length > 0) {
+          await supabase.from('final_results').upsert(rows, { onConflict: 'team_id' });
+        }
+      } catch (err) {
+        console.warn('Could not sync final_results to Supabase:', err);
+      }
+    }
+
+    this.addAuditLog({
+      admin_id: 'admin-vasu',
+      admin_name: effectiveEmail === 'vasuch9959@rguktn.ac.in' ? 'Vasu (Admin)' : 'Admin',
+      team_id: 'ALL',
+      action: 'Bulk Uploaded Top 50 Excel Results',
+      previous_value: `${Object.keys(this.getTop50Overrides()).length} teams`,
+      new_value: `${matchedIds.length} teams selected`,
+      reason: 'Uploaded official Top 50 spreadsheet'
+    });
+
+    return { success: true, count: matchedIds.length };
+  }
+
+  static async clearTop50Overrides(adminEmail?: string): Promise<boolean> {
+    const currentUser = this.getCurrentUser();
+    const effectiveEmail = (adminEmail || currentUser?.email || '').trim().toLowerCase();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(effectiveEmail);
+
+    if (!isAuthorizedAdmin) return false;
+
+    if (this.isBrowser()) {
+      localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify({}));
+      window.dispatchEvent(new Event('sih_results_updated'));
+
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        await supabase.from('final_results').delete().neq('team_id', 'dummy_safeguard');
+      } catch (e) {
+        console.warn('Error clearing Supabase final results:', e);
+      }
+    }
+    return true;
   }
 
   // --- CURRENT USER AUTH SESSION ---

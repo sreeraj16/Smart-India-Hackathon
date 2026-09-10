@@ -6,12 +6,14 @@ import { Team, AuditLog } from '@/lib/types';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { exportToExcel, exportToCSV, exportToPDF, FinalRankItem } from '@/lib/export/exportUtils';
-import { Trophy, Shield, Download, FileSpreadsheet, Plus, Trash2, RefreshCw, CheckCircle2, Search, Edit3 } from 'lucide-react';
+import { Trophy, Shield, Download, FileSpreadsheet, Plus, Trash2, RefreshCw, CheckCircle2, Search, Edit3, Upload } from 'lucide-react';
+import Top50UploadModal from '@/components/Top50UploadModal';
 
 export default function AdminResultsPage() {
   const [rankedList, setRankedList] = useState<FinalRankItem[]>([]);
   const [selectedCount, setSelectedCount] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   // Override Modal state
   const [overrideModalTeam, setOverrideModalTeam] = useState<FinalRankItem | null>(null);
@@ -158,6 +160,13 @@ export default function AdminResultsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setUploadModalOpen(true)}
+            className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Upload className="w-4 h-4" /> Upload Top 50 Excel (.xlsx)
+          </button>
+
           <button
             onClick={() => exportToExcel(rankedList)}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -325,6 +334,14 @@ export default function AdminResultsPage() {
           </div>
         </Modal>
       )}
+
+      {/* Top 50 Excel Upload Modal */}
+      <Top50UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        adminEmail="vasuch9959@rguktn.ac.in"
+        onSuccess={() => loadRankings()}
+      />
 
     </div>
   );
