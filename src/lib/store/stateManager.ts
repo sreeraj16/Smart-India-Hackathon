@@ -442,6 +442,33 @@ export class HackathonStateManager {
     }
   }
 
+  // --- SELECTED TEAMS ---
+  static getSelectedTeams(): Team[] {
+    const teams = this.getTeams();
+    const overrides = this.getTop50Overrides();
+
+    // Check if there are explicit selections in overrides / final_results
+    const hasExplicitSelections = Object.values(overrides).some(o => o.selected === true);
+
+    if (hasExplicitSelections) {
+      return teams.filter(t => overrides[t.team_id]?.selected === true);
+    }
+
+    // Fallback: If evaluation scores exist, take evaluated teams with scores > 0
+    const scoredTeams = teams
+      .map(t => ({
+        team: t,
+        score: this.getTeamAverageScore(t.team_id)
+      }))
+      .filter(item => item.score > 0);
+
+    if (scoredTeams.length > 0) {
+      return scoredTeams.map(item => item.team);
+    }
+
+    return [];
+  }
+
   static setTop50Override(teamId: string, selected: boolean, reason: string, adminName: string = 'Admin'): void {
     const currentUser = this.getCurrentUser();
     const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(currentUser?.email?.trim().toLowerCase() || '');
@@ -647,7 +674,7 @@ export class HackathonStateManager {
       const { data: dbResults } = await supabase.from('final_results').select('*');
       const overrides: Record<string, { selected: boolean; reason: string }> = {};
       (dbResults || []).forEach(r => {
-        if (r.admin_override) {
+        if (r.admin_override || r.selected !== undefined) {
           overrides[r.team_id] = { selected: !!r.selected, reason: r.override_reason || '' };
         }
       });
