@@ -430,100 +430,62 @@ export default function LandingPage() {
             )}
           </div>
 
-          {/* Cards Grid */}
+          {/* 1-Column Structure (50 Rows) - Only Team Name, Team Lead, and Problem Statement */}
           {filteredTeams.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredTeams.map((team) => {
+            <div className="space-y-3">
+              {/* Header row on desktop */}
+              <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100/80 rounded-xl border border-slate-200">
+                <div className="md:col-span-4">Team Name</div>
+                <div className="md:col-span-3">Team Lead</div>
+                <div className="md:col-span-5">Problem Statement</div>
+              </div>
+
+              {/* 50 Rows */}
+              {filteredTeams.map((team, index) => {
                 const leadMember = team.members?.find(m => m.is_lead) || team.members?.[0];
                 const leadName = team.team_lead_name || leadMember?.name || 'Lead';
-                const leadDept = leadMember?.department || team.department;
-                const leadYear = leadMember?.year || team.year;
-                const problemStatements = team.selected_problem_statements || [];
+                const ps = team.selected_problem_statements?.[0];
 
                 return (
                   <div
-                    key={team.team_id}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-300 transition-all flex flex-col justify-between"
+                    key={team.team_id || index}
+                    className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-sm hover:shadow-md hover:border-brand-300 transition-all grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center"
                   >
-                    <div>
-                      {/* Card Header: Team Name & Selected Badge */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-9 h-9 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600 shrink-0">
-                            <Users className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug">
-                              {team.team_name}
-                            </h3>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {team.college || 'RGUKT Nuzvid'}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-                          <CheckCircle className="w-3 h-3 text-emerald-600" />
-                          Selected
-                        </span>
+                    {/* 1. Team Name */}
+                    <div className="md:col-span-4">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 md:hidden">
+                        Team Name
                       </div>
-
-                      {/* Team Lead Info */}
-                      <div className="mb-4 p-3 bg-slate-50/80 rounded-xl border border-slate-100">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                          <User className="w-3 h-3 text-slate-400" />
-                          Team Lead
-                        </div>
-                        <div className="font-bold text-xs sm:text-sm text-slate-800">
-                          {leadName}
-                        </div>
-                        {(leadDept || leadYear) && (
-                          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                            {[leadDept, leadYear].filter(Boolean).join(' • ')}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Problem Statements */}
-                      <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <Layers className="w-3 h-3 text-slate-400" />
-                          Selected Problem Statement{problemStatements.length > 1 ? 's' : ''}
-                        </div>
-
-                        {problemStatements.length > 0 ? (
-                          <div className="space-y-2">
-                            {problemStatements.map((ps, idx) => (
-                              <div
-                                key={ps.problem_id || idx}
-                                className="p-2.5 bg-brand-50/40 rounded-xl border border-brand-100/70 text-xs"
-                              >
-                                <div className="flex items-center justify-between gap-2 mb-1">
-                                  <span className="font-bold text-brand-700 text-[11px] bg-brand-100/80 px-2 py-0.5 rounded-md">
-                                    {ps.problem_id || 'SIH2026'}
-                                  </span>
-                                  {ps.category && (
-                                    <span className="text-[10px] text-slate-500 font-semibold bg-white px-2 py-0.5 rounded border border-slate-200">
-                                      {ps.category}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="font-medium text-slate-700 text-xs line-clamp-2 leading-relaxed">
-                                  {ps.problem_title || ps.description || 'Problem Statement Title'}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-slate-400 italic">
-                            Problem statement details will be updated shortly
-                          </div>
-                        )}
+                      <div className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
+                        {team.team_name}
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                      <span>Members: {team.members?.length || 6} students</span>
-                      <span className="text-brand-600 font-semibold">RGUKT SIH &apos;26</span>
+                    {/* 2. Team Lead */}
+                    <div className="md:col-span-3 border-t md:border-t-0 border-slate-100 pt-2 md:pt-0">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 md:hidden">
+                        Team Lead
+                      </div>
+                      <div className="font-semibold text-xs sm:text-sm text-slate-800">
+                        {leadName}
+                      </div>
+                    </div>
+
+                    {/* 3. Problem Statement */}
+                    <div className="md:col-span-5 border-t md:border-t-0 border-slate-100 pt-2 md:pt-0">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 md:hidden">
+                        Problem Statement
+                      </div>
+                      <div className="flex items-start sm:items-center gap-2 flex-wrap sm:flex-nowrap">
+                        {ps?.problem_id && (
+                          <span className="shrink-0 font-bold text-brand-700 text-[11px] bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 rounded-lg">
+                            {ps.problem_id}
+                          </span>
+                        )}
+                        <span className="font-medium text-slate-700 text-xs sm:text-sm line-clamp-2 sm:line-clamp-1" title={ps?.problem_title || ps?.description}>
+                          {ps?.problem_title || ps?.description || ps?.problem_id || 'Selected Problem Statement'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );

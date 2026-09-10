@@ -13,7 +13,6 @@ const STORAGE_KEYS = {
 };
 
 const CONFIRMED_DUPLICATE_IDS = new Set([
-  'SI_Hackers_RGUKTN_SIH26158_030',
   'SI_Hackers_RGUKTN_SIH26158_031',
   'Innovexia_RGUKTN_PS-100_063',
   'INNOVEXIA_RGUKTN_SIH26100_108',
@@ -432,7 +431,16 @@ export class HackathonStateManager {
   }
 
   // --- MANUAL TOP 50 OVERRIDES ---
-  static getTop50Overrides(): Record<string, { selected: boolean; reason: string }> {
+  static getTop50Overrides(): Record<string, {
+    selected: boolean;
+    reason?: string;
+    team_name?: string;
+    team_lead_name?: string;
+    problem_id?: string;
+    problem_title?: string;
+    category?: 'Software' | 'Hardware';
+    index?: number;
+  }> {
     if (!this.isBrowser()) return {};
     const stored = localStorage.getItem(STORAGE_KEYS.TOP50_OVERRIDES);
     if (!stored) return {};
@@ -452,7 +460,63 @@ export class HackathonStateManager {
     const hasExplicitSelections = Object.values(overrides).some(o => o.selected === true);
 
     if (hasExplicitSelections) {
-      return teams.filter(t => overrides[t.team_id]?.selected === true);
+      const selectedList: Team[] = [];
+
+      for (const [teamId, ov] of Object.entries(overrides)) {
+        if (!ov.selected) continue;
+        const existing = teams.find(t => t.team_id === teamId);
+        if (existing) {
+          selectedList.push({
+            ...existing,
+            team_name: ov.team_name || existing.team_name,
+            team_lead_name: ov.team_lead_name || existing.team_lead_name,
+            selected_problem_statements: ov.problem_id ? [{
+              problem_id: ov.problem_id,
+              problem_title: ov.problem_title || 'Selected Problem Statement',
+              description: ov.problem_title || '',
+              category: ov.category || existing.selected_problem_statements?.[0]?.category || 'Software',
+              domain: existing.selected_problem_statements?.[0]?.domain || 'General'
+            }] : (existing.selected_problem_statements && existing.selected_problem_statements.length > 0 ? [existing.selected_problem_statements[0]] : [])
+          });
+        } else if (ov.team_name) {
+          selectedList.push({
+            team_id: teamId,
+            team_name: ov.team_name,
+            team_lead_id: `lead-${teamId}`,
+            team_lead_name: ov.team_lead_name || 'Team Lead',
+            team_lead_email: '',
+            team_lead_phone: '',
+            department: '',
+            year: '',
+            college: 'RGUKT Nuzvid',
+            registration_status: 'registered',
+            members: [{
+              name: ov.team_lead_name || 'Team Lead',
+              id_number: '',
+              email: '',
+              phone: '',
+              department: '',
+              year: '',
+              is_lead: true
+            }],
+            selected_problem_statements: ov.problem_id ? [{
+              problem_id: ov.problem_id,
+              problem_title: ov.problem_title || 'Selected Problem Statement',
+              description: ov.problem_title || '',
+              category: ov.category || 'Software',
+              domain: 'General'
+            }] : [],
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+
+      // Preserve original spreadsheet order if index is present
+      if (selectedList.some(t => overrides[t.team_id]?.index !== undefined)) {
+        selectedList.sort((a, b) => (overrides[a.team_id]?.index ?? 999) - (overrides[b.team_id]?.index ?? 999));
+      }
+
+      return selectedList;
     }
 
     // Fallback: If evaluation scores exist, take evaluated teams with scores > 0
@@ -532,7 +596,7 @@ export class HackathonStateManager {
     }
 
     const currentTeams = [...this.getTeams()];
-    const currentOverrides: Record<string, { selected: boolean; reason: string }> = replaceExisting
+    const currentOverrides: ReturnType<typeof HackathonStateManager.getTop50Overrides> = replaceExisting
       ? {}
       : { ...this.getTop50Overrides() };
 
@@ -622,10 +686,17 @@ export class HackathonStateManager {
       }
 
       if (targetTeamId) {
-        currentOverrides[targetTeamId] = {
+        const meta = {
           selected: true,
-          reason: `Uploaded via Top 50 Excel by ${effectiveEmail}`
+          reason: `Uploaded via Top 50 Excel by ${effectiveEmail}`,
+          team_name: rawName,
+          team_lead_name: rawLead,
+          problem_id: p.problem_id,
+          problem_title: p.problem_title,
+          category: p.category,
+          index: i + 1
         };
+        currentOverrides[targetTeamId] = meta;
         matchedIds.push(targetTeamId);
       }
     }
@@ -656,7 +727,7 @@ export class HackathonStateManager {
           team_id: id,
           selected: true,
           admin_override: true,
-          override_reason: `Uploaded via Top 50 Excel by ${effectiveEmail}`,
+          override_reason: JSON.stringify(currentOverrides[id]),
           updated_at: new Date().toISOString()
         }));
 
@@ -871,10 +942,34 @@ export class HackathonStateManager {
       // Fetch final results manually overridden
       const { data: dbResults, error: resultsError } = await supabase.from('final_results').select('*');
       if (!resultsError && dbResults) {
-        const overrides: Record<string, { selected: boolean; reason: string }> = {};
+        const overrides: Record<string, {
+          selected: boolean;
+          reason?: string;
+          team_name?: string;
+          team_lead_name?: string;
+          problem_id?: string;
+          problem_title?: string;
+          category?: 'Software' | 'Hardware';
+          index?: number;
+        }> = {};
         dbResults.forEach(r => {
           if (r.admin_override || r.selected !== undefined) {
-            overrides[r.team_id] = { selected: !!r.selected, reason: r.override_reason || '' };
+            let meta: any = {};
+            try {
+              if (r.override_reason && r.override_reason.trim().startsWith('{')) {
+                meta = JSON.parse(r.override_reason);
+              }
+            } catch {}
+            overrides[r.team_id] = {
+              selected: !!r.selected,
+              reason: meta.reason || r.override_reason || '',
+              team_name: meta.team_name,
+              team_lead_name: meta.team_lead_name,
+              problem_id: meta.problem_id,
+              problem_title: meta.problem_title,
+              category: meta.category,
+              index: meta.index
+            };
           }
         });
         localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));

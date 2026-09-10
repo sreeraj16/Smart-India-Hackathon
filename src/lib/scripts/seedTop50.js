@@ -11,7 +11,7 @@ async function seed() {
   const supabaseUrl = 'https://jftragfdpepzpybzleat.supabase.co';
   const supabaseKey = 'sb_publishable_VPnF0d1gxhfXyIuzGSyf5Q_pjRQCT6u';
 
-  // 1. Fetch DB teams and leads
+  // 1. Fetch DB teams, leads, and problem statements
   const [dbTeamsRes, dbLeadsRes, dbPSRes] = await Promise.all([
     fetch(`${supabaseUrl}/rest/v1/teams?select=team_id,team_name`, {
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
@@ -28,20 +28,30 @@ async function seed() {
   const dbLeads = await dbLeadsRes.json();
   const dbPS = await dbPSRes.json();
 
+  const psMap = new Map();
+  dbPS.forEach(p => {
+    psMap.set(p.problem_id.trim().toUpperCase(), p);
+  });
+
   function clean(s) {
     return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
   const finalRows = [];
   const teamsToUpsert = [];
+  const teamUpdates = [];
 
-  for (const t of top50) {
-    const rawName = t['Team Name'];
-    const rawLead = t['Team Lead Name'];
-    const psId = t['PS ID'];
+  for (let i = 0; i < top50.length; i++) {
+    const t = top50[i];
+    const rawName = (t['Team Name'] || t['team_name'] || '').trim();
+    const rawLead = (t['Team Lead'] || t['Team Lead Name'] || t['team_lead'] || '').trim();
+    const psId = (t['Problem Statement ID'] || t['PS ID'] || t['problem_id'] || '').trim().toUpperCase();
 
+    // 1. Exact or cleaned name match
     let match = dbTeams.find(d => d.team_name.toLowerCase() === rawName.toLowerCase());
     if (!match) match = dbTeams.find(d => clean(d.team_name) === clean(rawName));
+    
+    // 2. Lead name fallback
     if (!match && rawLead) {
       const leadMatch = dbLeads.find(l => clean(l.name) === clean(rawLead));
       if (leadMatch) match = dbTeams.find(d => d.team_id === leadMatch.team_id);
@@ -60,11 +70,25 @@ async function seed() {
       });
     }
 
+    const psObj = psMap.get(psId);
+    const problemTitle = psObj?.problem_title || `Problem Statement ${psId}`;
+    const category = psObj?.category || 'Software';
+
+    const overrideMeta = {
+      reason: 'Official SIH-2026 Top 50 Selected Teams List',
+      team_name: rawName,
+      team_lead_name: rawLead,
+      problem_id: psId,
+      problem_title: problemTitle,
+      category: category,
+      index: i + 1
+    };
+
     finalRows.push({
       team_id: teamId,
       selected: true,
       admin_override: true,
-      override_reason: 'Official SIH-2026 Top 50 Selected Teams List',
+      override_reason: JSON.stringify(overrideMeta),
       updated_at: new Date().toISOString()
     });
   }
