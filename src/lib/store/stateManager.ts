@@ -543,7 +543,7 @@ export class HackathonStateManager {
     }
     const overrides = this.getTop50Overrides();
     const prevStatus = overrides[teamId]?.selected ? 'Selected' : 'Not Selected';
-    overrides[teamId] = { selected, reason };
+    overrides[teamId] = { ...(overrides[teamId] || {}), selected, reason };
     
     if (this.isBrowser()) {
       localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));
@@ -571,6 +571,31 @@ export class HackathonStateManager {
       previous_value: prevStatus,
       new_value: selected ? 'Selected' : 'Not Selected',
       reason: reason
+    });
+  }
+
+  static editTop50Override(teamId: string, data: { team_name: string; team_lead_name: string; problem_id: string }): void {
+    const currentUser = this.getCurrentUser();
+    const isAuthorizedAdmin = ['vasuch9959@rguktn.ac.in', 'n220615@rguktn.ac.in'].includes(currentUser?.email?.trim().toLowerCase() || '');
+    if (!isAuthorizedAdmin) return;
+
+    const overrides = this.getTop50Overrides();
+    const existing = overrides[teamId] || { selected: true };
+    overrides[teamId] = { ...existing, ...data };
+
+    if (this.isBrowser()) {
+      localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));
+      window.dispatchEvent(new Event('sih_results_updated'));
+    }
+
+    this.addAuditLog({
+      admin_id: 'admin-1',
+      admin_name: currentUser?.name || 'Admin',
+      team_id: teamId,
+      action: 'Edited Top 50 Team Details',
+      previous_value: 'N/A',
+      new_value: data.team_name,
+      reason: 'Admin modified team details from dashboard'
     });
   }
 

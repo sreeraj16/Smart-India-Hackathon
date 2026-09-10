@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { exportToExcel, exportToCSV, exportToPDF, FinalRankItem } from '@/lib/export/exportUtils';
 import { Trophy, Shield, Download, FileSpreadsheet, Plus, Trash2, RefreshCw, CheckCircle2, Search, Edit3, Upload } from 'lucide-react';
 import Top50UploadModal from '@/components/Top50UploadModal';
+import top50Data from '@/lib/data/top50.json';
 
 export default function AdminResultsPage() {
   const [rankedList, setRankedList] = useState<FinalRankItem[]>([]);
@@ -19,6 +20,10 @@ export default function AdminResultsPage() {
   const [overrideModalTeam, setOverrideModalTeam] = useState<FinalRankItem | null>(null);
   const [overrideAction, setOverrideAction] = useState<boolean>(true);
   const [overrideReason, setOverrideReason] = useState<string>('');
+
+  // Edit Modal state
+  const [editModalTeam, setEditModalTeam] = useState<FinalRankItem | null>(null);
+  const [editForm, setEditForm] = useState({ team_name: '', team_lead_name: '', problem_id: '' });
 
   const loadRankings = () => {
     const teams = HackathonStateManager.getTeams();
@@ -41,6 +46,24 @@ export default function AdminResultsPage() {
         override: false,
         override_reason: ''
       };
+    });
+
+    // Add hardcoded top 50 teams if they don't exist in items
+    top50Data.forEach((t: any) => {
+      if (!items.some(item => item.team_id === t.id)) {
+        items.push({
+          rank: 0,
+          team_id: t.id,
+          team_name: t.team_name,
+          problem_id: t.problem_id,
+          problem_title: 'Selected Problem Statement',
+          category: 'Software',
+          score: 0,
+          selected: true,
+          override: false,
+          override_reason: ''
+        });
+      }
     });
 
     // 2. Sort by score descending
@@ -100,6 +123,35 @@ export default function AdminResultsPage() {
     );
 
     setOverrideModalTeam(null);
+    loadRankings();
+  };
+
+  const handleOpenEditModal = (item: FinalRankItem) => {
+    // Attempt to extract lead name and title from HackathonStateManager or overrides if available.
+    // For simplicity, we just extract from the item and overrides directly.
+    const overrides = HackathonStateManager.getTop50Overrides();
+    const ov = overrides[item.team_id];
+    let lead = ov?.team_lead_name || '';
+    
+    // Fallback to searching team data
+    if (!lead) {
+      const teams = HackathonStateManager.getTeams();
+      const t = teams.find(t => t.team_id === item.team_id);
+      lead = t?.team_lead_name || t?.members?.[0]?.name || '';
+    }
+
+    setEditForm({
+      team_name: ov?.team_name || item.team_name,
+      team_lead_name: lead,
+      problem_id: ov?.problem_id || item.problem_id
+    });
+    setEditModalTeam(item);
+  };
+
+  const handleConfirmEdit = () => {
+    if (!editModalTeam) return;
+    HackathonStateManager.editTop50Override(editModalTeam.team_id, editForm);
+    setEditModalTeam(null);
     loadRankings();
   };
 
@@ -263,20 +315,26 @@ export default function AdminResultsPage() {
                     )}
                   </td>
 
-                  <td className="py-3.5 px-4 text-right">
+                  <td className="py-3.5 px-4 text-right flex items-center justify-end gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => handleOpenEditModal(item)}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition-colors inline-flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
                     {item.selected ? (
                       <button
                         onClick={() => handleOpenOverrideModal(item, false)}
                         className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg transition-colors inline-flex items-center gap-1"
                       >
-                        <Trash2 className="w-3.5 h-3.5" /> Remove from Top 50
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
                       </button>
                     ) : (
                       <button
                         onClick={() => handleOpenOverrideModal(item, true)}
                         className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition-colors inline-flex items-center gap-1"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Add to Top 50
+                        <Plus className="w-3.5 h-3.5" /> Add
                       </button>
                     )}
                   </td>
@@ -329,6 +387,61 @@ export default function AdminResultsPage() {
                 className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
               >
                 Confirm & Log Override
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Team Modal */}
+      {editModalTeam && (
+        <Modal
+          isOpen={!!editModalTeam}
+          onClose={() => setEditModalTeam(null)}
+          title={`Edit Team Details — ${editModalTeam.team_id}`}
+          maxWidth="md"
+        >
+          <div className="space-y-4 text-xs">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Team Name</label>
+              <input
+                type="text"
+                value={editForm.team_name}
+                onChange={(e) => setEditForm(f => ({ ...f, team_name: e.target.value }))}
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Team Lead Name</label>
+              <input
+                type="text"
+                value={editForm.team_lead_name}
+                onChange={(e) => setEditForm(f => ({ ...f, team_lead_name: e.target.value }))}
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">Problem Statement ID</label>
+              <input
+                type="text"
+                value={editForm.problem_id}
+                onChange={(e) => setEditForm(f => ({ ...f, problem_id: e.target.value }))}
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 font-medium"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setEditModalTeam(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmEdit}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
+              >
+                Save Changes
               </button>
             </div>
           </div>
