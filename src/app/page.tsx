@@ -24,60 +24,60 @@ export default function LandingPage() {
   const [oauthStatus, setOauthStatus] = useState('');
   const router = useRouter();
 
-  useEffect(() => {
-    const loadData = () => {
-      const teams = HackathonStateManager.getTeams();
-      const ps = HackathonStateManager.getProblemStatements();
-      const ppts = teams.filter(t => t.ppt_submission).length;
-      setStats({
-        teamsCount: teams.length,
-        psCount: ps.length,
-        pptsCount: ppts
-      });
+  const loadData = React.useCallback(() => {
+    const teams = HackathonStateManager.getTeams();
+    const ps = HackathonStateManager.getProblemStatements();
+    const ppts = teams.filter(t => t.ppt_submission).length;
+    setStats({
+      teamsCount: teams.length,
+      psCount: ps.length,
+      pptsCount: ppts
+    });
 
-      const overrides = HackathonStateManager.getTop50Overrides();
-      const combinedSelected: any[] = [];
+    const overrides = HackathonStateManager.getTop50Overrides();
+    const combinedSelected: any[] = [];
+    
+    top50Data.forEach((item: any) => {
+      const override = overrides[item.id];
+      if (override && override.selected === false) {
+         return;
+      }
       
-      top50Data.forEach((item: any) => {
-        const override = overrides[item.id];
-        if (override && override.selected === false) {
-           return;
-        }
-        
-        combinedSelected.push({
-           team_id: item.id,
-           team_name: override?.team_name || item.team_name,
-           team_lead_name: override?.team_lead_name || item.team_lead_name,
-           selected_problem_statements: [
-              {
-                problem_id: override?.problem_id || item.problem_id,
-                problem_title: override?.problem_title || 'Selected Problem Statement',
-                category: undefined,
-              }
-           ]
-        });
+      combinedSelected.push({
+         team_id: item.id,
+         team_name: override?.team_name || item.team_name,
+         team_lead_name: override?.team_lead_name || item.team_lead_name,
+         selected_problem_statements: [
+            {
+              problem_id: override?.problem_id || item.problem_id,
+              problem_title: override?.problem_title || 'Selected Problem Statement',
+              category: undefined,
+            }
+         ]
       });
+    });
 
-      Object.entries(overrides).forEach(([teamId, ov]) => {
-         if (ov.selected === true && !top50Data.some((t: any) => t.id === teamId)) {
-            combinedSelected.push({
-               team_id: teamId,
-               team_name: ov.team_name || 'Unknown Team',
-               team_lead_name: ov.team_lead_name || 'Team Lead',
-               selected_problem_statements: [
-                  {
-                    problem_id: ov.problem_id || 'Unknown',
-                    problem_title: ov.problem_title || 'Selected Problem Statement',
-                    category: undefined,
-                  }
-               ]
-            });
-         }
-      });
+    Object.entries(overrides).forEach(([teamId, ov]) => {
+       if (ov.selected === true && !top50Data.some((t: any) => t.id === teamId)) {
+          combinedSelected.push({
+             team_id: teamId,
+             team_name: ov.team_name || 'Unknown Team',
+             team_lead_name: ov.team_lead_name || 'Team Lead',
+             selected_problem_statements: [
+                {
+                  problem_id: ov.problem_id || 'Unknown',
+                  problem_title: ov.problem_title || 'Selected Problem Statement',
+                  category: undefined,
+                }
+             ]
+          });
+       }
+    });
 
-      setSelectedTeams(combinedSelected);
-    };
+    setSelectedTeams(combinedSelected);
+  }, []);
 
+  useEffect(() => {
     loadData();
     setCurrentUser(HackathonStateManager.getCurrentUser());
 
@@ -457,7 +457,7 @@ export default function LandingPage() {
 
               {/* 50 Rows */}
               {filteredTeams.map((team, index) => {
-                const leadMember = team.members?.find(m => m.is_lead) || team.members?.[0];
+                const leadMember = team.members?.find((m: any) => m.is_lead) || team.members?.[0];
                 const leadName = team.team_lead_name || leadMember?.name || 'Lead';
                 const ps = team.selected_problem_statements?.[0];
 
