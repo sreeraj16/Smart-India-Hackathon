@@ -76,6 +76,12 @@ export default function Navbar() {
             >
               Guidelines & Rules
             </Link>
+            <Link 
+              href="/#results" 
+              className="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors"
+            >
+              Results
+            </Link>
 
             {/* Role specific quick links */}
             {currentUser?.role === 'team_lead' && (
@@ -186,6 +192,13 @@ export default function Navbar() {
             }`}
           >
             Guidelines & Rules
+          </Link>
+          <Link
+            href="/#results"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Results
           </Link>
 
           {/* Role specific quick links */}
