@@ -537,17 +537,35 @@ export class HackathonStateManager {
       : { ...this.getTop50Overrides() };
 
     const matchedIds: string[] = [];
+    const newTeamsToInsert: Team[] = [];
+
+    const cleanStr = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     for (let i = 0; i < parsedTeams.length; i++) {
       const p = parsedTeams[i];
-      const normalizedName = p.team_name.trim().toLowerCase();
+      const rawName = (p.team_name || '').trim();
+      const rawLead = (p.team_lead_name || '').trim();
+      const normalizedName = rawName.toLowerCase();
       const normalizedId = (p.team_id || '').trim().toLowerCase();
 
-      // Find matching existing team
+      // 1. Exact ID or Name Match
       let matchedTeam = currentTeams.find(t => 
         (normalizedId && t.team_id.toLowerCase() === normalizedId) ||
         (t.team_name.trim().toLowerCase() === normalizedName)
       );
+
+      // 2. Cleaned Alphanumeric Name Match (ignoring punctuation, spaces, rguktn suffixes)
+      if (!matchedTeam) {
+        matchedTeam = currentTeams.find(t => cleanStr(t.team_name) === cleanStr(rawName));
+      }
+
+      // 3. Fallback: Match by Team Lead Name
+      if (!matchedTeam && rawLead) {
+        matchedTeam = currentTeams.find(t => {
+          if (cleanStr(t.team_lead_name) === cleanStr(rawLead)) return true;
+          return t.members && t.members.some(m => cleanStr(m.name) === cleanStr(rawLead));
+        });
+      }
 
       let targetTeamId = matchedTeam?.team_id;
 
@@ -600,6 +618,7 @@ export class HackathonStateManager {
           created_at: new Date().toISOString()
         };
         currentTeams.push(newTeam);
+        newTeamsToInsert.push(newTeam);
       }
 
       if (targetTeamId) {
@@ -621,6 +640,18 @@ export class HackathonStateManager {
       // Sync into Supabase in background
       try {
         const { supabase } = await import('@/lib/supabase/client');
+
+        // Ensure any newly generated teams exist in public.teams table to satisfy foreign key constraints
+        if (newTeamsToInsert.length > 0) {
+          const dbTeams = newTeamsToInsert.map(t => ({
+            team_id: t.team_id,
+            team_name: t.team_name,
+            registration_status: 'registered',
+            created_at: new Date().toISOString()
+          }));
+          await supabase.from('teams').upsert(dbTeams, { onConflict: 'team_id' });
+        }
+
         const rows = matchedIds.map(id => ({
           team_id: id,
           selected: true,
@@ -630,7 +661,12 @@ export class HackathonStateManager {
         }));
 
         if (rows.length > 0) {
-          await supabase.from('final_results').upsert(rows, { onConflict: 'team_id' });
+          const { error: upsertErr } = await supabase.from('final_results').upsert(rows, { onConflict: 'team_id' });
+          if (upsertErr) {
+            console.error('Could not sync final_results to Supabase:', upsertErr);
+          } else {
+            console.log(`Successfully synced ${rows.length} results to Supabase final_results`);
+          }
         }
       } catch (err) {
         console.warn('Could not sync final_results to Supabase:', err);
@@ -833,14 +869,16 @@ export class HackathonStateManager {
       localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(auditLogs));
 
       // Fetch final results manually overridden
-      const { data: dbResults } = await supabase.from('final_results').select('*');
-      const overrides: Record<string, { selected: boolean; reason: string }> = {};
-      (dbResults || []).forEach(r => {
-        if (r.admin_override || r.selected !== undefined) {
-          overrides[r.team_id] = { selected: !!r.selected, reason: r.override_reason || '' };
-        }
-      });
-      localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));
+      const { data: dbResults, error: resultsError } = await supabase.from('final_results').select('*');
+      if (!resultsError && dbResults) {
+        const overrides: Record<string, { selected: boolean; reason: string }> = {};
+        dbResults.forEach(r => {
+          if (r.admin_override || r.selected !== undefined) {
+            overrides[r.team_id] = { selected: !!r.selected, reason: r.override_reason || '' };
+          }
+        });
+        localStorage.setItem(STORAGE_KEYS.TOP50_OVERRIDES, JSON.stringify(overrides));
+      }
 
       // If logged in, update current user's team_id if it matched or changed
       const currentUser = this.getCurrentUser();
